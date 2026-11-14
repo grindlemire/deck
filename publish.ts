@@ -39,7 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listTalks, parseArgs, talksRoot } from "./args.ts";
-import { buildDeck } from "./build.ts";
+import { buildDeck, NOTES } from "./build.ts";
 import { configTag, readConfig } from "./config.ts";
 import { followUrl, qrSvg } from "./qr.ts";
 
@@ -147,7 +147,7 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
       )
       .replace(/<section\b[^>]*\bclass="[^"]*\bslide\b[^"]*"[^>]*>[\s\S]*?<\/section>/g, (slide) => {
         let note = "";
-        const bare = slide.replace(/\s*<aside class="notes">([\s\S]*?)<\/aside>/, (_, html) => {
+        const bare = slide.replace(new RegExp(String.raw`\s*` + NOTES.source), (_, html) => {
           note = html.trim();
           return "";
         });

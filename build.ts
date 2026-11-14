@@ -40,6 +40,10 @@ const die = (msg: string) => {
   process.exit(1);
 };
 
+/* A slide's speaker notes: an <aside> whose class includes notes, whatever
+   else it carries (data-lint-off and the like). The notes' HTML is group 1. */
+export const NOTES = /<aside\b[^>]*\bclass="(?:[^"]*\s)?notes(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/aside>/;
+
 export type BuildOptions = {
   /* Media to inline in place of a file: its absolute path, and the
      data: URI to use instead (publish.ts swaps in a follow-along QR). */
@@ -141,7 +145,7 @@ export function buildDeck(dir: string, opts: BuildOptions = {}): string {
     .split(/<section\b[^>]*class="[^"]*\bslide\b/)
     .slice(1)
     .forEach((src, i) => {
-      const onScreen = src.replace(/<aside class="notes">[\s\S]*?<\/aside>/g, "").replace(/<[^>]+>/g, "");
+      const onScreen = src.replace(new RegExp(NOTES.source, "g"), "").replace(/<[^>]+>/g, "");
       if (/\u2014|&mdash;|&#8212;/.test(onScreen)) console.warn(`warning: slide ${i + 1} has an em-dash on screen`);
     });
 
