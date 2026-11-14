@@ -188,7 +188,22 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.NotFound(w, r)
+	s.notFound(w, r)
+}
+
+// notFound answers with the site's 404.html (publish writes one), else
+// Go's plain answer.
+func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
+	f := s.files["404.html"]
+	if f == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", f.ctype)
+	w.WriteHeader(http.StatusNotFound)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(f.body)
+	}
 }
 
 // canonical says where a non-canonical path redirects to.

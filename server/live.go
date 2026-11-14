@@ -48,11 +48,12 @@ const (
 type live struct {
 	prefix   string // where the talks are; see site.prefix
 	key      []byte
-	ipHeader string // the header a trusted proxy puts the visitor's address in
-	names   []string
-	rooms   map[string]*room
-	limit   *limiter
-	streams *streams
+	ipHeader string           // the header a trusted proxy puts the visitor's address in
+	notFound http.HandlerFunc // the site's 404 page, for the follow page
+	names    []string
+	rooms    map[string]*room
+	limit    *limiter
+	streams  *streams
 }
 
 // room is one talk's follow-along: where the speaker is, the ink on the
@@ -134,9 +135,10 @@ func newLive(st *site, opt options) (*live, error) {
 		prefix:   st.prefix,
 		key:      []byte(opt.key),
 		ipHeader: opt.ipHeader,
-		rooms:   map[string]*room{},
-		limit:   newLimiter(),
-		streams: &streams{byAddr: map[string]int{}, perAddr: maxStreamsPerAddr, max: maxStreams},
+		notFound: st.notFound,
+		rooms:    map[string]*room{},
+		limit:    newLimiter(),
+		streams:  &streams{byAddr: map[string]int{}, perAddr: maxStreamsPerAddr, max: maxStreams},
 	}
 	for name, deck := range st.talks() {
 		page, err := followPage(st.prefix, name, deck)
@@ -215,8 +217,11 @@ func (lv *live) room(w http.ResponseWriter, r *http.Request) *room {
 }
 
 func (lv *live) servePage(w http.ResponseWriter, r *http.Request) {
-	rm := lv.room(w, r)
+	// People reach this page from a QR code: a talk that is not here
+	// gets the site's 404 page, as any other missing page does.
+	rm := lv.rooms[r.PathValue("talk")]
 	if rm == nil {
+		lv.notFound(w, r)
 		return
 	}
 	setSiteHeaders(w.Header())

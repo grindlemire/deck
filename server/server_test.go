@@ -506,3 +506,31 @@ func TestBadPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestNotFoundPage(t *testing.T) {
+	// Without a 404.html, Go's plain answer.
+	srv, _ := newTestServer(t)
+	if res, body := get(t, srv.URL+"/nope"); res.StatusCode != 404 || !strings.Contains(body, "404 page not found") {
+		t.Errorf("GET /nope without 404.html = %d %q", res.StatusCode, body)
+	}
+
+	// With one, that page, still with a 404 status.
+	files := map[string]string{"404.html": "<h1>Page not found</h1>"}
+	for name, body := range talkFiles() {
+		files["talks/"+name] = body
+	}
+	srv, _ = serveSite(t, files)
+	for _, p := range []string{"/nope", "/talks/nope", "/talks/demo/nope", "/talks/nope/live"} {
+		res, body := get(t, srv.URL+p)
+		if res.StatusCode != 404 || body != "<h1>Page not found</h1>" || res.Header.Get("Content-Type") != "text/html; charset=utf-8" {
+			t.Errorf("GET %s = %d %q (%s)", p, res.StatusCode, body, res.Header.Get("Content-Type"))
+		}
+	}
+	// The talks still serve, and notes.json is still not a file.
+	if res, _ := get(t, srv.URL+"/talks/demo"); res.StatusCode != 200 {
+		t.Errorf("GET /talks/demo = %d", res.StatusCode)
+	}
+	if res, body := get(t, srv.URL+"/talks/demo/notes.json"); res.StatusCode != 404 || strings.Contains(body, "hello") {
+		t.Errorf("GET notes.json = %d %q", res.StatusCode, body)
+	}
+}
