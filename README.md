@@ -115,10 +115,16 @@ hotspot and have your laptop and the room join it, or host the talks.
 
 ## Hosting
 
-Hosting is optional. Hosted, your talks get a public link and the follow-along
-works on any network. `bun deck publish` writes every talk as a static site,
-and [deploy/](deploy/README.md) has a Dockerfile that serves it with the
-follow-along. It runs anywhere that runs a container.
+Hosting is optional, and there are two ways to do it:
+
+- **GitHub Pages**, or any static host, for a public link to every talk.
+  deck includes a workflow that publishes your talks on every push.
+  There's no follow-along on a static site, and your speaker notes stay
+  off it.
+- **A container** running deck's server, for the follow-along on any
+  network as well. It runs anywhere that runs a container.
+
+[deploy/README.md](deploy/README.md) walks through both.
 
 ## Themes
 

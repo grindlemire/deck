@@ -5,7 +5,45 @@ follow-along from your laptop. Host the talks when you want a public link,
 or a follow-along that works on any network, including venue Wi-Fi that
 won't let phones reach your laptop.
 
-## What runs
+There are two ways:
+
+- **A static site,** on GitHub Pages or any static host. You get the
+  decks, their link previews and a list of your talks. There's no
+  follow-along, and the speaker notes stay off the site.
+- **A container** that runs deck's server. You get everything, including
+  the follow-along on any network and your notes in the presenter window
+  of the hosted deck.
+
+## A static site: GitHub Pages
+
+`bun deck publish --static` writes the site for a host that only serves
+files:
+
+- the speaker notes are left out entirely, since a static host would hand
+  them to anyone;
+- the decks show no Go live button and never ask for a key;
+- the links are relative, so the site works at any path, such as
+  `you.github.io/my-talks/`.
+
+To publish on every push:
+
+1. Copy the workflow into your talks repo:
+
+   ```
+   mkdir -p .github/workflows
+   cp node_modules/@grindlemire/deck/deploy/github-pages.yml .github/workflows/pages.yml
+   ```
+
+2. In the repo's **Settings > Pages**, set **Source** to **GitHub Actions**.
+
+3. Run `bun deck check` on each talk and commit what it writes in
+   `deck/share/`: the link preview image and the tab icons. The workflow
+   has no browser to render them.
+
+Push, and the talks are at `https://you.github.io/<repo>/talks/`. For
+another static host, run `bun deck publish --static` and upload `site/`.
+
+## A container: everything, including the follow-along
 
 `bun deck publish` writes every talk as a static site in `site/`, and
 `server/` (Go, standard library only) serves that site and adds the
@@ -40,7 +78,7 @@ runs a container works: Railway, Fly, Render, a VPS with Docker.
    - `PORT`, if the host picks the port (default 8080).
    - One instance only. Live state is in memory.
 
-## Behind a proxy
+### Behind a proxy
 
 The server rate-limits reactions by the visitor's address. Behind a proxy
 every visitor arrives from the proxy's address, so tell the server which
@@ -50,7 +88,7 @@ Dockerfile's `ENTRYPOINT`. The header is `X-Real-IP` on Railway,
 this when every request comes through that proxy: anyone who reaches the
 server directly can put any address in the header.
 
-## Example: Railway
+### Example: Railway
 
 A `railway.toml` next to the Dockerfile:
 

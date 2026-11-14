@@ -59,7 +59,7 @@ deck/
   skill/          a Claude Code skill for writing talks (SKILL.md)
   template/       what every new talk gets: the sources digest and clip
                   scaffolding (the slides come from the theme)
-  deploy/         an optional Dockerfile and guide for hosting the talks
+  deploy/         optional hosting: a Dockerfile, a GitHub Pages workflow, a guide
   docs/           the README's pictures (not in the package)
   favicon.svg     the talks index's tab icon (publish)
   AUTHORING.md    the rules every talk follows: read this first
@@ -213,7 +213,7 @@ speaker, git's `user.name`).
 ### Publish (hosting every talk)
 
 ```
-bun deck publish [--out site] [--base https://example.com]
+bun deck publish [--out site] [--base https://example.com] [--static]
 ```
 
 Builds every `<talk>/deck` and writes a static site: `site/talks/<talk>/` is
@@ -230,6 +230,14 @@ without them publishes with a warning and no image. It needs no browser,
 so a bare Bun image can run it after `bun install`; serve the site with
 `deck/server` (see Follow-along and `deploy/`) or any static host,
 which gives everything but the follow-along.
+
+`--static` is for a host that only serves files, such as GitHub Pages.
+It leaves the speaker notes out entirely (no `notes.json`, which a
+static host would hand to anyone), names no server in the decks so they
+show no Go live and ask for no key, writes relative links so the site
+works under any path (`you.github.io/repo/`), and adds a `.nojekyll`.
+It warns about a talk that shows a follow-along QR code, since nothing
+answers it. `deploy/github-pages.yml` runs it on every push.
 
 ### Lint
 
