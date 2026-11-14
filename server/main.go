@@ -64,10 +64,6 @@ func run() error {
 		return err
 	}
 	key := os.Getenv("DECK_LEAD_KEY")
-	if key == "" {
-		// The old name, for hosts set up before the rename.
-		key = os.Getenv("DECKKIT_LEAD_KEY")
-	}
 	madeUp := key == ""
 	if madeUp {
 		b := make([]byte, 12)
