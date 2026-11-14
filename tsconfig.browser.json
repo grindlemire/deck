@@ -1,0 +1,15 @@
+{
+  // The deck's browser code (build and dev strip its types). Loose for
+  // now: tighten toward strict a flag at a time.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": [],
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true
+  },
+  "include": ["engine.ts", "lint.ts", "story.ts", "dev-client.ts", "browser.d.ts"]
+}

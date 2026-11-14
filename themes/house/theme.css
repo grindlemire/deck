@@ -1,0 +1,1685 @@
+/* ============================================================
+   deck / themes / house.css
+   The house look for deck talks, taken from GitStack: the
+   console palette (dark by default, light on "t"), Inter Tight
+   headlines, IBM Plex Sans and Mono, square hairline panels, one
+   blue accent. Link it after engine.css and before the talk's own
+   theme.css; see deck/AUTHORING.md for the component catalog
+   and the rules that keep a deck calm and easy to follow.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Fonts (OFL; licenses in fonts/ beside this file). The build inlines them.
+   ------------------------------------------------------------ */
+@font-face { font-family: "Inter Tight"; src: url("fonts/InterTight-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Inter Tight"; src: url("fonts/InterTight-Bold.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "IBM Plex Sans"; src: url("fonts/IBMPlexSans-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Sans"; src: url("fonts/IBMPlexSans-Medium.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "IBM Plex Sans"; src: url("fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Medium.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); font-weight: 600; }
+
+/* ------------------------------------------------------------
+   Tokens. The dark block is GitStack's console palette
+   (ui/styles/theme.css). Every slide, walls and demos included,
+   follows the theme; only recorded clips and captures keep the
+   look they were recorded in.
+   ------------------------------------------------------------ */
+:root {
+  --bg-0: #0e1116;
+  --bg-1: #161a21;
+  --bg-2: #1d222b;
+  --bg-3: #252a34;
+  --bg-deep: #090c10;
+  --ink-95: #e8eaed;
+  --ink-80: #c8ccd2;
+  --ink-65: #9ba1ac;
+  --ink-50: #7a8090;
+  --ink-38: #5a606e;
+  --ink-22: #3a4050;
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.1);
+  --blue: #5aa0ff;
+  --blue-bg: rgba(90, 160, 255, 0.1);
+  --blue-line: rgba(90, 160, 255, 0.45);
+  --add: #6ad28d;
+  --add-bg: rgba(106, 210, 141, 0.1);
+  --del: #ef6f6c;
+  --del-bg: rgba(239, 111, 108, 0.1);
+  --amber: #f5b95a;
+  --amber-bg: rgba(245, 185, 90, 0.12);
+  --shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.45);
+
+  /* Section colors: the footer squares, divider track and title pills
+     use these. A talk with named sections can recolor them. */
+  --series-1: var(--ink-50);
+  --series-2: var(--add);
+  --series-3: var(--blue);
+
+  /* syntax: GitStack's dark code colors */
+  --tok-keyword: #ff7b72;
+  --tok-string: #a5d6ff;
+  --tok-function: #d2a8ff;
+  --tok-tag: #7ee787;
+  --tok-attr: #79c0ff;
+  --tok-punct: #8b949e;
+
+  /* deck hooks */
+  --paper: var(--bg-0);
+  --ink: var(--ink-95);
+  --dark: var(--bg-deep);
+  --accent: var(--blue);
+  --muted: var(--ink-65);
+  --muted-dark: var(--ink-65);
+  --code-bg: var(--bg-1);
+  --code-fg: var(--ink-95);
+  --code-head-bg: var(--bg-2);
+  --code-head-fg: var(--ink-65);
+  --code-line: var(--line-strong);
+  --delta-add: var(--add);
+  --delta-del: var(--del);
+  --delta-chg: var(--amber);
+  /* The space around a 16:9 slide in a window of another shape: the
+     slide's own background, so slides read edge to edge. */
+  --letterbox: var(--bg-0);
+
+  --font-display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+/* GitStack's light palette (ui/styles/base.css) and light code colors. */
+:root[data-theme="light"] {
+  --bg-0: #ffffff;
+  --bg-1: #f4f6f9;
+  --bg-2: #e9edf2;
+  --bg-3: #dbe0e7;
+  --ink-95: #1c2128;
+  --ink-80: #2f363d;
+  --ink-65: #47505a;
+  --ink-50: #59626d;
+  --ink-38: #78828d;
+  --ink-22: #aab3bd;
+  --line: rgba(20, 24, 31, 0.12);
+  --line-strong: rgba(20, 24, 31, 0.2);
+  --blue: #0868d1;
+  --blue-bg: rgba(9, 105, 218, 0.08);
+  --blue-line: rgba(9, 105, 218, 0.4);
+  --add: #1a7f37;
+  --add-bg: rgba(26, 127, 55, 0.1);
+  --del: #cf222e;
+  --del-bg: rgba(207, 34, 46, 0.1);
+  --amber: #9a6700;
+  --amber-bg: rgba(154, 103, 0, 0.1);
+  --shadow: 0 1rem 2.6rem rgba(20, 24, 31, 0.14);
+  --tok-keyword: #cf222e;
+  --tok-string: #0a3069;
+  --tok-function: #8250df;
+  --tok-tag: #116329;
+  --tok-attr: #0550ae;
+  --tok-punct: #636c76;
+  --letterbox: var(--bg-0);
+}
+
+/* ------------------------------------------------------------
+   Base type: Plex for reading, Inter Tight for headlines,
+   sentence case (GitStack never shouts).
+   ------------------------------------------------------------ */
+.slide {
+  font-family: var(--font-sans);
+  padding-bottom: 5.4rem;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+}
+
+.h-xl { font-size: 6rem; }
+.h-lg { font-size: 4.25rem; }
+.h-md { font-size: 3.4rem; }
+.h-sm { font-size: 2.6rem; }
+
+strong { font-weight: 600; }
+
+.blue { color: var(--blue); }
+.red { color: var(--del); }
+.green { color: var(--add); }
+.t-center { text-align: center; }
+
+.ic {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 0.02em 0.32em;
+}
+
+.mode-wall .ic,
+.mode-demo .ic {
+  background: var(--bg-2);
+}
+
+/* Mono uppercase letterspaced label: GitStack's panel-header voice
+   ("NAVIGATE", "FILES", "REVIEW COMMENTS"). */
+.label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-65);
+}
+
+/* ------------------------------------------------------------
+   Slide footer. The corner tag sits bottom-left as chrome, not
+   as an eyebrow over the headline. data-section="1|2|3" lights 1-3
+   of the section squares so the room always knows where we are.
+   ------------------------------------------------------------ */
+.corner-tag {
+  top: auto;
+  bottom: 2.1rem;
+  left: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-50);
+}
+
+.corner-tag[data-section]::before {
+  content: "";
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 2.2rem;
+  background: var(--s1, var(--ink-22));
+  box-shadow: 1.1rem 0 0 var(--s2, var(--ink-22)), 2.2rem 0 0 var(--s3, var(--ink-22));
+}
+
+.corner-tag[data-section="1"] { --s1: var(--series-1); }
+.corner-tag[data-section="2"] { --s1: var(--series-1); --s2: var(--series-2); }
+.corner-tag[data-section="3"] { --s1: var(--series-1); --s2: var(--series-2); --s3: var(--series-3); }
+
+.mode-wall .corner-tag,
+.mode-demo .corner-tag {
+  color: var(--ink-50);
+}
+
+.src-line {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-50);
+}
+
+.credits {
+  max-width: 64rem;
+  font-size: 1.6rem;
+  color: var(--ink-80, var(--ink));
+}
+.credits li { margin-bottom: 0.9rem; }
+.credits li::marker { font-family: var(--font-mono); color: var(--ink-50); }
+.credits a { color: var(--blue); text-decoration: none; font-family: var(--font-mono); font-size: 0.85em; }
+
+.dk-counter {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ink-50);
+  bottom: 2rem;
+  right: 3rem;
+}
+
+.dk-notes {
+  font-family: var(--font-sans);
+  background: color-mix(in srgb, #0e1116 96%, transparent);
+  border-top: 1px solid var(--blue);
+}
+
+[data-placeholder] {
+  border: 1px dashed var(--ink-38);
+  color: var(--ink-50);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  background: var(--bg-1);
+}
+
+body.dk-overview .slide { box-shadow: inset 0 0 0 0.5rem var(--bg-3); }
+
+/* ------------------------------------------------------------
+   Talk-wide layout helpers
+   ------------------------------------------------------------ */
+.statement {
+  font-size: 2.3rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink-80);
+}
+
+.statement strong { color: var(--ink-95); }
+
+.foot-lines {
+  font-size: 1.85rem;
+  line-height: 1.5;
+  color: var(--ink-80);
+}
+
+.foot-lines .strong-line {
+  font-weight: 600;
+  color: var(--ink-95);
+}
+
+.cols {
+  display: flex;
+  gap: 2.4rem;
+  align-items: flex-start;
+}
+
+.cols > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.cols.center { align-items: center; }
+
+.dense {
+  padding: 4.4rem 7rem 5.4rem;
+  gap: 1.6rem;
+}
+
+.sect-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 2.3rem;
+}
+
+/* Code frames: a GitStack panel. */
+.code-frame {
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+.dl-add { background: var(--add-bg); }
+.dl-del { background: var(--del-bg); }
+.chip-new { background: var(--add-bg); border-radius: 3px; }
+.chip-old { background: var(--del-bg); border-radius: 3px; }
+
+/* Numbered list with mono numerals in square chips. */
+.num-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.num-list li {
+  display: flex;
+  gap: 1.8rem;
+  align-items: flex-start;
+}
+
+.num-list .n {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1.4rem;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  border-radius: 3px;
+  margin-top: 0.15rem;
+}
+
+.num-list .li-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.3rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.num-list .li-sub {
+  color: var(--ink-65);
+  font-size: 1.7rem;
+  line-height: 1.45;
+  margin-top: 0.35rem;
+}
+
+/* Square-bullet list with semibold leads. */
+.lead-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-size: 2rem;
+  line-height: 1.45;
+  color: var(--ink-80);
+}
+
+.lead-list li {
+  position: relative;
+  padding-left: 2.4rem;
+}
+
+.lead-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.95rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--ink-38);
+}
+
+.lead-list strong { color: var(--ink-95); }
+
+.lead-list.blue-marks li::before { background: var(--blue); }
+
+/* About the speaker: a big square photo beside a few lines of
+   background (.about > figure.about-photo + .about-side). */
+.about {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 34rem 1fr;
+  gap: 6rem;
+  align-items: center;
+}
+
+.about-photo {
+  margin: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  background: var(--bg-1);
+}
+
+.about-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+}
+
+.about-handle {
+  margin-top: -1.4rem;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  color: var(--ink-50);
+}
+
+/* Follow-along: the talk's live URL as a QR big enough to scan from the
+   back of the room (.follow > .follow-side + figure.qr.follow-qr). */
+.follow {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 44rem;
+  gap: 6rem;
+  align-items: center;
+}
+
+.follow-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+}
+
+.follow-url {
+  font-size: 1.8rem;
+}
+
+.follow-qr {
+  width: 44rem;
+}
+
+/* ------------------------------------------------------------
+   Diagram arrows. The arrow element is the line itself, so it lands
+   exactly on the edges of the boxes beside it: .arr-h spans its grid
+   cell left to right, .arr-v spans its cell top to bottom. .back
+   points it the other way; .ev draws a dashed blue event arrow. An
+   optional <span> label floats above (.arr-h) or beside (.arr-v)
+   without moving the line.
+   ------------------------------------------------------------ */
+.arr-h,
+.arr-v {
+  --arr: var(--ink-50);
+  position: relative;
+  background: var(--arr);
+}
+
+.arr-h {
+  align-self: center;
+  height: 2px;
+}
+
+.arr-v {
+  justify-self: center;
+  width: 2px;
+  height: 100%;
+}
+
+.arr-h::after,
+.arr-v::after {
+  content: "";
+  position: absolute;
+}
+
+.arr-h::after {
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left: 0.9rem solid var(--arr);
+  border-top: 0.5rem solid transparent;
+  border-bottom: 0.5rem solid transparent;
+}
+
+.arr-h.back::after {
+  right: auto;
+  left: -1px;
+  border-left: 0;
+  border-right: 0.9rem solid var(--arr);
+}
+
+.arr-v::after {
+  left: 50%;
+  bottom: -1px;
+  transform: translateX(-50%);
+  border-top: 0.9rem solid var(--arr);
+  border-left: 0.5rem solid transparent;
+  border-right: 0.5rem solid transparent;
+}
+
+.arr-v.back::after {
+  bottom: auto;
+  top: -1px;
+  border-top: 0;
+  border-bottom: 0.9rem solid var(--arr);
+}
+
+.arr-h > span,
+.arr-v > span {
+  position: absolute;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--ink-65);
+}
+
+.arr-h > span {
+  left: 50%;
+  bottom: 0.8rem;
+  transform: translateX(-50%);
+}
+
+.arr-v > span {
+  left: 1.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.arr-v.label-left > span {
+  left: auto;
+  right: 1.2rem;
+}
+
+.arr-h.ev,
+.arr-v.ev {
+  --arr: var(--blue);
+}
+
+.arr-h.ev { background: repeating-linear-gradient(to right, var(--arr) 0 0.6rem, transparent 0.6rem 1rem); }
+.arr-v.ev { background: repeating-linear-gradient(to bottom, var(--arr) 0 0.6rem, transparent 0.6rem 1rem); }
+.arr-h.ev > span,
+.arr-v.ev > span { color: var(--blue); }
+
+/* ------------------------------------------------------------
+   Sequence diagram (.seq): who sends what to whom, in order.
+   Lanes across the top, a lifeline under each, then rows of
+   messages (.seq-msg, an arrow between two lanes) and notes
+   (.seq-note, a box on one lane). Group rows into .seq-step
+   elements and give each data-build to reveal one step per click.
+
+   <div class="seq" data-lanes="3">
+     <div class="seq-lanes"><span>Browser</span><span>Server</span>...</div>
+     <div class="seq-body">
+       <div class="seq-step">
+         <div class="seq-row"><div class="seq-note" style="grid-column:1">...</div></div>
+         <div class="seq-row"><div class="seq-msg" data-span="2" style="grid-column:1/3">POST /x</div></div>
+       </div>
+     </div>
+   </div>
+
+   A message spans the lanes it joins (grid-column a / b+1, data-span
+   = how many); data-dir="left" points it back. Two messages in one
+   row may share a lane.
+   ------------------------------------------------------------ */
+.seq {
+  --seq-line: var(--line-strong);
+  width: 100%;
+  font-size: 1.75rem;
+}
+
+.seq-lanes,
+.seq-row {
+  display: grid;
+  grid-template-columns: repeat(var(--seq-n, 3), 1fr);
+}
+
+.seq[data-lanes="2"] { --seq-n: 2; }
+.seq[data-lanes="3"] { --seq-n: 3; }
+.seq[data-lanes="4"] { --seq-n: 4; }
+
+.seq-lanes span {
+  justify-self: center;
+  padding: 0.6rem 1.6rem;
+  font-weight: 600;
+  color: var(--ink-95);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+/* One lifeline down the middle of each lane. */
+.seq-body {
+  padding: 0.8rem 0 0.4rem;
+  background-repeat: no-repeat;
+  background-size: 2px 100%;
+  background-image:
+    linear-gradient(var(--seq-line), var(--seq-line)),
+    linear-gradient(var(--seq-line), var(--seq-line)),
+    linear-gradient(var(--seq-line), var(--seq-line)),
+    linear-gradient(var(--seq-line), var(--seq-line));
+}
+
+.seq[data-lanes="2"] .seq-body { background-position: 25% 0, 75% 0, -10px 0, -10px 0; }
+.seq[data-lanes="3"] .seq-body { background-position: calc(100% / 6) 0, 50% 0, calc(500% / 6) 0, -10px 0; }
+.seq[data-lanes="4"] .seq-body { background-position: 12.5% 0, 37.5% 0, 62.5% 0, 87.5% 0; }
+
+.seq-row {
+  margin: 0.6rem 0;
+}
+
+.seq-row > * {
+  grid-row: 1;
+}
+
+.seq-note {
+  justify-self: center;
+  white-space: nowrap;
+  padding: 0.55rem 1.3rem;
+  font-size: 1.6rem;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--ink-80);
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+/* The arrow runs from the middle of its first lane to the middle of
+   its last; the label sits above it. */
+.seq-msg {
+  --pad: 25%;
+  position: relative;
+  padding: 0 var(--pad) 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink-80);
+}
+
+.seq-msg[data-span="3"] { --pad: calc(100% / 6); }
+.seq-msg[data-span="4"] { --pad: 12.5%; }
+
+.seq-msg::before {
+  content: "";
+  position: absolute;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: 0.5rem;
+  border-top: 2px solid var(--ink-50);
+}
+
+/* The head's tip sits exactly on the target lane's lifeline. */
+.seq-msg::after {
+  content: "";
+  position: absolute;
+  right: var(--pad);
+  bottom: calc(0.5rem + 1px);
+  transform: translate(1px, 50%);
+  border-left: 0.9rem solid var(--ink-50);
+  border-top: 0.5rem solid transparent;
+  border-bottom: 0.5rem solid transparent;
+}
+
+.seq-msg[data-dir="left"]::after {
+  right: auto;
+  left: var(--pad);
+  transform: translate(-1px, 50%);
+  border-left: 0;
+  border-right: 0.9rem solid var(--ink-50);
+}
+
+/* An event pushed by the server, and a reply that carries nothing. */
+.seq-msg.ev { color: var(--blue); }
+.seq-msg.ev::before { border-top-color: var(--blue); border-top-style: dashed; }
+.seq-msg.ev::after { border-left-color: var(--blue); }
+.seq-msg.ev[data-dir="left"]::after { border-right-color: var(--blue); }
+.seq-msg.quiet { color: var(--ink-50); }
+
+/* Square pill, the app's status pill shape. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.8rem;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-80);
+  background: var(--bg-2);
+}
+
+.pill.amber { color: var(--amber); background: var(--amber-bg); border-color: transparent; }
+.pill.green { color: var(--add); background: var(--add-bg); border-color: transparent; }
+.pill.blue { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+
+.pill i {
+  width: 0.6rem;
+  height: 0.6rem;
+  background: currentColor;
+}
+
+/* Real product media in a panel. */
+.shot {
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--bg-1);
+  min-height: 0;
+  /* the captures are all ~16:10; height comes from the flex layout */
+  aspect-ratio: 1.6;
+  align-self: center;
+  max-width: 100%;
+}
+
+.shot img,
+.shot video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: top center;
+}
+
+.shot-caption {
+  font-size: 1.5rem;
+  color: var(--ink-65);
+}
+
+/* ------------------------------------------------------------
+   Title slide
+   ------------------------------------------------------------ */
+.title-slide {
+  padding: 7rem 9rem 6rem;
+  gap: 0;
+}
+
+.title-line {
+  font-size: 11rem;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  margin-top: 4rem;
+}
+
+.title-tagline {
+  font-size: 2.2rem;
+  color: var(--ink-80);
+  margin-top: 3.2rem;
+  max-width: 64rem;
+  line-height: 1.4;
+}
+
+.title-libs {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.6rem;
+}
+
+.title-libs .pill i { width: 0.65rem; height: 0.65rem; }
+.title-libs .pill:nth-child(1) i { background: var(--series-1); }
+.title-libs .pill:nth-child(2) i { background: var(--series-2); }
+.title-libs .pill:nth-child(3) i { background: var(--series-3); }
+
+.title-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4rem;
+  padding-top: 2.4rem;
+  border-top: 1px solid var(--line-strong);
+}
+
+.title-speaker {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.avatar {
+  width: 4.4rem;
+  height: 4.4rem;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 1.8rem;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+}
+
+/* A photo instead of the initial: put an img inside .avatar. */
+.avatar:has(img) {
+  overflow: hidden;
+  background: none;
+  border-color: var(--line-strong);
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.title-name {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  font-size: 1.9rem;
+  line-height: 1.25;
+}
+
+.title-handle {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 1.35rem;
+  color: var(--ink-65);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.1rem;
+  letter-spacing: -0.02em;
+}
+
+.brand svg {
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.brand .brand-domain {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  color: var(--ink-65);
+  margin-left: 0.4rem;
+}
+
+/* ------------------------------------------------------------
+   Anchor slides: one line, big, with a blue bar.
+   ------------------------------------------------------------ */
+.mode-anchor {
+  background: var(--bg-0);
+  color: var(--ink-95);
+  padding: 6rem 9rem 6rem 12rem;
+  gap: 2.6rem;
+}
+
+.mode-anchor::before {
+  content: "";
+  position: absolute;
+  left: 9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.5rem;
+  height: 38%;
+  background: var(--blue);
+}
+
+.anchor-line {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  font-size: 6.6rem;
+}
+
+.anchor-xl .anchor-line { font-size: 8rem; }
+
+.anchor-sub {
+  font-size: 2.4rem;
+  line-height: 1.4;
+  color: var(--ink-65);
+  max-width: 80rem;
+}
+
+/* ------------------------------------------------------------
+   Demo slides: what to watch, how to run it, and a silent clip
+   of the demo that carries the slide if the live demo fails.
+   ------------------------------------------------------------ */
+.demo-slide {
+  padding: 4.6rem 7rem 5.4rem;
+}
+
+/* engine.css paints walls and demo slides as a dark inversion; in the
+   house theme they are ordinary slides in the current theme (a wall is
+   still marked by its red top rule). */
+.mode-wall,
+.mode-demo {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.demo-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 34rem 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+/* The side-by-side clip (Sam and Mara) is twice as wide: clip below,
+   the notes above it in two columns. */
+.demo-grid.wide {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  align-items: start;
+}
+
+.demo-grid.wide .demo-side {
+  display: grid;
+  grid-template-columns: 1fr 52rem;
+  column-gap: 4rem;
+  row-gap: 1.2rem;
+  align-items: start;
+}
+
+.demo-grid.wide .demo-side > h2 { grid-column: 1; grid-row: 1; }
+.demo-grid.wide .demo-watch { grid-column: 1; grid-row: 2 / 4; }
+.demo-grid.wide .demo-checkpoint { grid-column: 2; grid-row: 2; }
+.demo-grid.wide .demo-link { grid-column: 2; grid-row: 3; }
+
+.demo-grid.wide .demo-clip {
+  aspect-ratio: 1604 / 500;
+  align-self: center;
+}
+
+.demo-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.demo-watch {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-size: 1.85rem;
+  line-height: 1.4;
+  color: var(--ink-80);
+}
+
+.demo-watch li {
+  position: relative;
+  padding-left: 2.2rem;
+}
+
+.demo-watch li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.8rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--blue);
+}
+
+.demo-checkpoint {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  color: var(--ink-95);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 0.8rem 1.3rem;
+}
+
+.demo-checkpoint::before {
+  content: "$ ";
+  color: var(--add);
+}
+
+.demo-link {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  color: var(--blue);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.demo-link::before {
+  content: "\2197  ";
+}
+
+.demo-clip {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+/* ------------------------------------------------------------
+   Section dividers: .divider.sp1-.sp3 for sections 1-3, .sp0 for an
+   epilogue section (all three squares lit).
+   ------------------------------------------------------------ */
+.divider {
+  justify-content: center;
+  padding-left: 12rem;
+  gap: 1.6rem;
+}
+
+.divider.sp1 { --sc: var(--series-1); }
+.divider.sp2 { --sc: var(--series-2); }
+.divider.sp3 { --sc: var(--series-3); }
+.divider.sp0 { --sc: var(--ink-95); }
+.divider.sp1 .divider-title { color: var(--ink-95); }
+
+.divider-track {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.divider-track i {
+  width: 1.3rem;
+  height: 1.3rem;
+  background: var(--ink-22);
+}
+
+.divider-track i:nth-child(1) { background: var(--series-1); }
+.divider.sp2 .divider-track i:nth-child(2),
+.divider.sp3 .divider-track i:nth-child(2),
+.divider.sp0 .divider-track i:nth-child(2) { background: var(--series-2); }
+.divider.sp3 .divider-track i:nth-child(3),
+.divider.sp0 .divider-track i:nth-child(3) { background: var(--series-3); }
+
+.divider.sp1 .divider-track i:nth-child(1),
+.divider.sp2 .divider-track i:nth-child(2),
+.divider.sp3 .divider-track i:nth-child(3) {
+  transform: scale(1.5);
+  margin: 0 0.4rem;
+}
+
+.divider-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  font-size: 11rem;
+  color: var(--sc);
+}
+
+.divider-lib {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 4rem;
+  letter-spacing: -0.02em;
+  color: var(--ink-95);
+}
+
+.divider-q {
+  font-size: 2.4rem;
+  color: var(--ink-65);
+  max-width: 78rem;
+  line-height: 1.4;
+  margin-top: 1rem;
+}
+
+/* ------------------------------------------------------------
+   Two-card comparison (.ways > .way): a side-by-side primer.
+   ------------------------------------------------------------ */
+.ways {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.4rem;
+  align-items: stretch;
+  margin: 2rem 0 1rem;
+}
+
+.way {
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-1);
+  padding: 2.2rem 2.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.way-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3rem;
+  letter-spacing: -0.02em;
+}
+
+.way-steps {
+  list-style: none;
+  counter-reset: step;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  font-size: 1.9rem;
+  line-height: 1.35;
+  color: var(--ink-80);
+}
+
+.way-steps li {
+  counter-increment: step;
+  display: flex;
+  gap: 1.2rem;
+}
+
+.way-steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  border-radius: 3px;
+  margin-top: 0.2rem;
+}
+
+.way-foot {
+  margin-top: 0.6rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line-strong);
+  font-size: 1.7rem;
+  color: var(--ink-65);
+}
+
+/* ------------------------------------------------------------
+   Annotated screenshot: callouts positioned in % of the image.
+   ------------------------------------------------------------ */
+.shot.annotated {
+  position: relative;
+}
+
+.callout {
+  position: absolute;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: #ffffff;
+  background: #2f6fd6;
+  border-radius: 3px;
+  padding: 0.35rem 0.9rem;
+  box-shadow: 0 0.4rem 1.2rem rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------
+   Speaker line and brand mark (.title-builds, .brand-sm).
+   ------------------------------------------------------------ */
+.title-builds {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 1.6rem;
+  color: var(--ink-65);
+}
+
+.brand-sm {
+  font-size: 1.7rem;
+  gap: 0.5rem;
+  color: var(--ink-95);
+}
+
+.brand-sm svg {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+/* ------------------------------------------------------------
+   Wall slides: shared 3-phase choreography
+   Phase A (1): the mock setup. Phase B (2): the pain plays.
+   Phase C (3): the poster lands over the mock.
+   ------------------------------------------------------------ */
+.wall {
+  padding: 0;
+}
+
+.wall::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0.35rem;
+  background: var(--del);
+}
+
+.wall .corner-tag {
+  z-index: 5;
+}
+
+.wall-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rem;
+  padding: 6rem;
+  transition: opacity 0.2s ease;
+}
+
+.wall[data-phase="3"] .wall-stage {
+  opacity: 0;
+}
+
+.wall-poster {
+  position: absolute;
+  inset: 0;
+  padding: 5rem 9rem 6rem;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.wall[data-phase="3"] .wall-poster {
+  display: flex;
+}
+
+.wall-poster > * {
+  animation: land 0.22s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+.wall-poster > :nth-child(2) { animation-delay: 0.08s; }
+.wall-poster > :nth-child(3) { animation-delay: 0.16s; }
+.wall-poster > :nth-child(4) { animation-delay: 0.24s; }
+.wall-poster > :nth-child(5) { animation-delay: 0.32s; }
+.wall-poster > :nth-child(6) { animation-delay: 0.4s; }
+
+@keyframes land {
+  from { opacity: 0; transform: translateY(0.8rem); }
+  to   { opacity: 1; transform: none; }
+}
+
+.wp-head {
+  margin-bottom: 2.2rem;
+}
+
+.wp-slam {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+  font-size: 7rem;
+}
+
+.wp-slam em,
+.wp-line em {
+  font-style: normal;
+  color: var(--del);
+}
+
+.wp-line {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-size: 3.6rem;
+  margin-top: 1.8rem;
+  color: var(--ink-80);
+}
+
+.wp-principle {
+  color: var(--blue);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 3rem;
+  margin-top: 3.2rem;
+  padding-left: 1.8rem;
+  border-left: 0.4rem solid var(--blue);
+}
+
+.wp-intro {
+  color: var(--ink-65);
+  font-size: 2rem;
+  margin-top: 1.6rem;
+}
+
+.wp-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.2rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  font-size: 2.1rem;
+  line-height: 1.4;
+  color: var(--ink-80);
+}
+
+.wp-list li {
+  position: relative;
+  padding-left: 2.2rem;
+}
+
+.wp-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--del);
+}
+
+.wp-list strong { color: var(--ink-95); }
+
+.wall-note {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1.4rem;
+  color: var(--del);
+  background: var(--del-bg);
+  border: 1px solid var(--del);
+  border-radius: 3px;
+  padding: 0.3rem 0.9rem;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.4s;
+  z-index: 4;
+}
+
+/* ---------- Mock browser window (wall stages) ---------- */
+.mock-browser {
+  background: var(--bg-0);
+  color: var(--ink-95);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.6);
+}
+
+.mock-chrome {
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 0.8rem 1.1rem;
+}
+
+.mock-dots i { background: var(--ink-22); }
+
+.mock-url {
+  font-family: var(--font-mono);
+  background: var(--bg-0);
+  color: var(--ink-65);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+.mock-viewport {
+  background: var(--bg-0);
+}
+
+/* An overlay scrollbar, like macOS: the thumb only, no gutter. */
+.mock-scrollbar {
+  background: transparent;
+  border-left: 0;
+}
+
+.mock-thumb {
+  left: 0.3rem;
+  right: 0.3rem;
+  background: var(--ink-22);
+  border-radius: 3px;
+}
+
+.skel { background: var(--bg-3); height: 1rem; border-radius: 2px; }
+
+/* ------------------------------------------------------------
+   Diagrams and lists
+   ------------------------------------------------------------ */
+
+/* Request/response flow (.rf): nodes joined by labelled arrows,
+   plus a row of question cells (.attr-grid). */
+.rf {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.rf-node {
+  flex: 0 0 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.3rem 1.6rem;
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-top: 3px solid var(--blue);
+  border-radius: 3px;
+}
+
+.rf-server {
+  border-top-color: var(--add);
+}
+
+.rf-who {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.rf-server .rf-who {
+  color: var(--add);
+}
+
+.rf-what {
+  font-size: 1.9rem;
+  line-height: 1.3;
+  color: var(--ink-95);
+}
+
+.rf-arrow {
+  flex: 1;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.2rem;
+}
+
+.rf-arrow code {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  color: var(--ink-80);
+  white-space: nowrap;
+}
+
+.rf-arrow svg {
+  width: 100%;
+  height: 1.2rem;
+  overflow: visible;
+}
+
+.rf-arrow line {
+  stroke: var(--ink-38);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.rf-arrow path {
+  fill: var(--ink-38);
+}
+
+.attr-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2rem;
+}
+
+.attr-cell {
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--bg-1);
+  padding: 1rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.attr-cell code {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  color: var(--tok-attr);
+}
+
+.attr-cell span {
+  font-size: 1.5rem;
+  color: var(--ink-80);
+}
+
+/* Big-number stats (.stats > .stat, .stat.hero for the highlight) */
+.stats {
+  display: flex;
+  gap: 1.6rem;
+}
+
+.stat {
+  flex: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--bg-1);
+  padding: 1.4rem 1.8rem;
+}
+
+.stat-n {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 4.4rem;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.stat-l {
+  font-size: 1.5rem;
+  color: var(--ink-65);
+  margin-top: 0.6rem;
+  line-height: 1.35;
+}
+
+.stat.hero { border-color: var(--blue-line); background: var(--blue-bg); }
+.stat.hero .stat-n { color: var(--blue); }
+
+/* Numbered rows (.cost-list): a list of costs, steps or claims */
+/* Each row is its own panel piece, so a row still waiting to be
+   revealed leaves no empty box behind. */
+.cost-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cost-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 1.6rem;
+  padding: 1.25rem 1.8rem;
+  font-size: 2rem;
+  line-height: 1.35;
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+}
+
+.cost-list li + li { margin-top: -1px; }
+.cost-list li:first-child { border-radius: 3px 3px 0 0; }
+.cost-list li:last-child { border-radius: 0 0 3px 3px; }
+
+.cost-list .k {
+  flex: none;
+  width: 2.8rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  color: var(--del);
+}
+
+.cost-list .sub {
+  display: block;
+  font-size: 1.55rem;
+  color: var(--ink-65);
+  margin-top: 0.2rem;
+}
+
+/* Recap slide foot */
+.recap-foot {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 2.6rem;
+  text-align: center;
+}
+
+/* Close */
+.close-slide {
+  padding: 5rem 7rem 5.4rem;
+}
+
+.close-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 62rem;
+  gap: 4rem;
+  align-items: center;
+}
+
+.close-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+}
+
+.close-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.3rem;
+  font-size: 1.7rem;
+}
+
+.close-list li { line-height: 2; }
+
+/* A long link wraps as one box (break it with <wbr> at a slash). */
+.close-list .ic {
+  display: inline-block;
+}
+
+.close-list .label {
+  display: block;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.close-qrs {
+  display: flex;
+  gap: 1.6rem;
+}
+
+.close-qrs .qr {
+  width: 10rem;
+  height: 10rem;
+}
+
+/* A QR made with tools/qr.mjs: dark on white in both themes, with an
+   optional figcaption saying where it goes. */
+figure.qr {
+  margin: 0;
+  height: auto;
+}
+
+.qr img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+}
+
+.qr figcaption {
+  margin-top: 0.6rem;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-65);
+  text-align: center;
+}
+
+.close-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  align-items: flex-start;
+}
+
+.close-side .shot {
+  width: 100%;
+  height: auto;
+}

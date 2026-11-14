@@ -1,0 +1,297 @@
+/* ============================================================
+   deck / themes / paper / theme.css
+   An editorial look: warm paper, serif headlines (Source Serif 4),
+   a humanist sans for text (Source Sans 3), JetBrains Mono for
+   code, and one red-orange accent. Light by default; "t" switches
+   to dark. Link it after engine.css and before the talk's own
+   theme.css. Components and their markup: CATALOG.md beside this
+   file.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Fonts (OFL; licenses in fonts/). The build inlines them.
+   ------------------------------------------------------------ */
+@font-face { font-family: "Source Serif 4"; src: url("fonts/SourceSerif4-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/SourceSerif4-SemiBoldItalic.woff2") format("woff2"); font-weight: 600; font-style: italic; }
+@font-face { font-family: "Source Sans 3"; src: url("fonts/SourceSans3-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Source Sans 3"; src: url("fonts/SourceSans3-Italic.woff2") format("woff2"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Source Sans 3"; src: url("fonts/SourceSans3-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-SemiBold.woff2") format("woff2"); font-weight: 600; }
+
+/* ------------------------------------------------------------
+   Tokens. The engine's tokens (paper, ink, accent, code...) plus a
+   few of this theme's own: a deeper paper for panels, a rule color,
+   and the accent as a fill with the text color that reads on it.
+   ------------------------------------------------------------ */
+:root {
+  --paper: #f6f1e7;
+  --paper-deep: #ece4d4;
+  --ink: #1d1a16;
+  --ink-soft: #4a4339;
+  --muted: #6b6257;
+  --rule: #d9cfbd;
+  --accent: #b83c24;
+  --accent-fill: #b83c24;
+  --on-accent: #fff8ef;
+  --dark: #1d1a16;
+  --muted-dark: #c9bfb2;
+  --letterbox: var(--paper);
+
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-sans: "Source Sans 3", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", Menlo, monospace;
+
+  --code-bg: #efe7d8;
+  --code-fg: #2a251f;
+  --code-head-bg: #e4d9c6;
+  --code-head-fg: #5f574c;
+  --code-line: #d4c8b3;
+  --tok-keyword: #9e3220;
+  --tok-string: #3d6633;
+  --tok-function: #6e4492;
+  --tok-tag: #26627f;
+  --tok-attr: #7a5c0c;
+  --tok-punct: #7d7468;
+  --delta-add: #3d6633;
+  --delta-del: #9e3220;
+  --delta-chg: #7a5c0c;
+}
+
+:root[data-theme="dark"] {
+  --paper: #1a1714;
+  --paper-deep: #241f1a;
+  --ink: #f1ebe0;
+  --ink-soft: #d3cabd;
+  --muted: #a99f92;
+  --rule: #3a332b;
+  --accent: #ff8a65;
+  --accent-fill: #b83c24;
+  --on-accent: #fff8ef;
+  --dark: #0f0d0b;
+  --muted-dark: #a99f92;
+
+  --code-bg: #24201b;
+  --code-fg: #ece4d6;
+  --code-head-bg: #2c2721;
+  --code-head-fg: #a99f92;
+  --code-line: #3a332b;
+  --tok-keyword: #ff9a7a;
+  --tok-string: #a9d18e;
+  --tok-function: #d0a8f0;
+  --tok-tag: #8fd0f0;
+  --tok-attr: #f0cf7a;
+  --tok-punct: #9a9084;
+  --delta-add: #a9d18e;
+  --delta-del: #ff9a7a;
+  --delta-chg: #f0cf7a;
+}
+
+/* ------------------------------------------------------------
+   Type. Serif headlines in sentence case; text in the sans.
+   ------------------------------------------------------------ */
+.slide {
+  font-family: var(--font-sans);
+  font-size: 2.2rem;
+  padding: 6rem 9rem 7rem;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.012em;
+  line-height: 1.1;
+}
+.h-xl { font-size: 6.4rem; }
+.h-lg { font-size: 4.6rem; }
+.h-md { font-size: 3.6rem; }
+
+.headline em,
+.cover h1 em,
+.chapter-title em { font-style: italic; color: var(--accent); }
+
+.lede { font-size: 2.6rem; color: var(--ink-soft); max-width: 70rem; }
+.statement { font-family: var(--font-display); font-weight: 600; font-size: 3rem; line-height: 1.25; max-width: 80rem; }
+.muted { color: var(--muted); }
+.ic { font-family: var(--font-mono); font-size: 0.85em; background: var(--paper-deep); padding: 0.1em 0.4em; border-radius: 0.3rem; }
+
+/* The footer: small caps-like mono label, bottom left (engine places it). */
+.corner-tag {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+.src-line { font-family: var(--font-sans); font-size: 1.2rem; color: var(--muted); }
+
+/* ------------------------------------------------------------
+   Cover (title slide)
+   ------------------------------------------------------------ */
+.cover { justify-content: center; gap: 2.6rem; }
+.cover .rule { width: 12rem; height: 0.5rem; background: var(--accent-fill); }
+.cover h1 { font-family: var(--font-display); font-weight: 600; font-size: 9rem; line-height: 0.98; letter-spacing: -0.02em; }
+.cover .lede { margin-top: 0.6rem; }
+.cover .byline { display: flex; align-items: center; gap: 1.6rem; margin-top: 3rem; font-size: 2rem; }
+.cover .byline .handle { color: var(--muted); }
+
+.mark {
+  flex: none;
+  width: 5.2rem;
+  height: 5.2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 2.6rem;
+}
+.mark img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ------------------------------------------------------------
+   Compare: two cards side by side
+   ------------------------------------------------------------ */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; width: 100%; }
+.card { background: var(--paper-deep); border-top: 0.5rem solid var(--accent-fill); padding: 2.6rem 3rem 3rem; }
+.card h3 { font-family: var(--font-display); font-weight: 600; font-size: 3.2rem; line-height: 1.15; margin-bottom: 1.4rem; }
+.card ol { margin: 0; padding-left: 2.6rem; display: grid; gap: 0.6rem; }
+.card .card-foot { margin-top: 1.8rem; color: var(--muted); }
+
+/* ------------------------------------------------------------
+   Rows: numbered lines, one per click
+   ------------------------------------------------------------ */
+.rows { list-style: none; margin: 0; padding: 0; width: 100%; border-top: 0.15rem solid var(--rule); }
+.rows li { display: grid; grid-template-columns: 7rem 1fr; align-items: baseline; padding: 1.8rem 0; border-bottom: 0.15rem solid var(--rule); font-size: 2.6rem; }
+.rows .n { font-family: var(--font-display); font-style: italic; font-weight: 600; color: var(--accent); }
+.rows .sub { display: block; font-size: 1.9rem; color: var(--muted); }
+
+/* ------------------------------------------------------------
+   Points: short lines with an accent dash
+   ------------------------------------------------------------ */
+.points { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.8rem; font-size: 2.6rem; }
+.points li { position: relative; padding-left: 3.4rem; }
+.points li::before { content: ""; position: absolute; left: 0; top: 0.75em; width: 1.6rem; height: 0.3rem; background: var(--accent-fill); }
+
+/* ------------------------------------------------------------
+   Figures: big numbers with a caption
+   ------------------------------------------------------------ */
+.figures { display: flex; gap: 6rem; margin-top: 1rem; }
+.figure-n { font-family: var(--font-display); font-weight: 600; font-size: 6.4rem; line-height: 1; }
+.figure.hero .figure-n { color: var(--accent); }
+.figure-l { margin-top: 0.8rem; font-size: 1.9rem; color: var(--muted); max-width: 26rem; }
+
+/* ------------------------------------------------------------
+   Chapter (section divider): the accent as a full bleed
+   ------------------------------------------------------------ */
+.chapter { justify-content: center; gap: 2rem; background: var(--accent-fill); color: var(--on-accent); }
+.chapter .chapter-num { font-family: var(--font-mono); font-size: 1.6rem; letter-spacing: 0.22em; text-transform: uppercase; }
+.chapter .chapter-title { font-family: var(--font-display); font-weight: 600; font-size: 8rem; line-height: 1; letter-spacing: -0.02em; }
+.chapter .chapter-title em { color: inherit; }
+.chapter .chapter-q { font-size: 2.6rem; max-width: 70rem; opacity: 0.92; }
+.chapter .corner-tag { color: var(--on-accent); }
+
+/* ------------------------------------------------------------
+   Flow: boxes joined by labelled arrows
+   ------------------------------------------------------------ */
+.flow { display: flex; align-items: center; gap: 1.6rem; width: 100%; }
+.flow-node { flex: 1; background: var(--paper-deep); border: 0.15rem solid var(--rule); padding: 2rem 2.2rem; }
+.flow-node.key { border-color: var(--accent-fill); }
+.flow-who { display: block; font-family: var(--font-mono); font-size: 1.3rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
+.flow-what { font-family: var(--font-display); font-weight: 600; font-size: 2.6rem; line-height: 1.2; }
+.flow-arrow { flex: 0 0 15rem; display: grid; gap: 0.6rem; justify-items: center; color: var(--muted); }
+.flow-arrow code { font-family: var(--font-mono); font-size: 1.4rem; }
+.flow-arrow svg { width: 100%; height: 1.2rem; }
+.flow-arrow line { stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.flow-arrow path { fill: currentColor; }
+
+/* ------------------------------------------------------------
+   Wall: a dark slide. Click 1 the setup, 2 the pain (style it in
+   the talk's theme.css), 3 the poster over it.
+   ------------------------------------------------------------ */
+.mode-wall { background: var(--dark); color: #f1ebe0; }
+.mode-wall .corner-tag { color: #a99f92; }
+.wall-stage { position: absolute; inset: 0; display: grid; place-items: center; transition: opacity 0.4s ease, filter 0.4s ease; }
+.wall-note {
+  position: absolute;
+  padding: 0.8rem 1.4rem;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.wall-poster {
+  position: absolute;
+  inset: 0;
+  padding: 0 12rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.4rem;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.wall-slam { font-family: var(--font-display); font-weight: 600; font-size: 7rem; line-height: 1.05; letter-spacing: -0.02em; }
+.wall-slam em { color: #ff8a65; }
+.wall-principle { font-size: 2.8rem; color: #d3cabd; border-left: 0.5rem solid #ff8a65; padding-left: 2rem; }
+.wall[data-phase="2"] .wall-note,
+.wall[data-phase="3"] .wall-note { opacity: 1; }
+.wall[data-phase="3"] .wall-poster { opacity: 1; }
+.wall[data-phase="3"] .wall-stage { opacity: 0.05; filter: blur(0.4rem); }
+.mode-wall .mock-browser { background: #2a251f; }
+
+/* ------------------------------------------------------------
+   Demo slide: what to watch, how to run it, the fallback clip
+   ------------------------------------------------------------ */
+.mode-demo { background: var(--paper); color: var(--ink); }
+.mode-demo .corner-tag { color: var(--muted); }
+.demo-grid { flex: 1; display: grid; grid-template-columns: 38rem 1fr; gap: 4rem; align-items: center; }
+.demo-side { display: grid; gap: 2.2rem; align-content: center; }
+.demo-run { font-family: var(--font-mono); font-size: 1.6rem; background: var(--code-bg); padding: 1.2rem 1.6rem; }
+.demo-link { font-family: var(--font-mono); font-size: 1.5rem; color: var(--accent); text-decoration: none; }
+.demo-clip { width: 100%; }
+.demo-clip video,
+.demo-clip img { width: 100%; display: block; border: 0.15rem solid var(--rule); }
+
+/* ------------------------------------------------------------
+   Anchor: one line to remember
+   ------------------------------------------------------------ */
+.mode-anchor { background: var(--accent-fill); color: var(--on-accent); gap: 2.4rem; }
+.anchor-line { font-family: var(--font-display); font-weight: 600; font-size: 8rem; line-height: 1.02; letter-spacing: -0.02em; }
+.anchor-sub { font-size: 2.6rem; opacity: 0.92; max-width: 70rem; }
+
+/* ------------------------------------------------------------
+   Credits and closing
+   ------------------------------------------------------------ */
+.credits { font-size: 1.9rem; color: var(--ink-soft); }
+.credits li { margin-bottom: 1rem; }
+.credits a { color: var(--accent); font-family: var(--font-mono); font-size: 0.8em; text-decoration: none; }
+
+.closing { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+.closing-main { display: grid; gap: 2.6rem; align-content: center; }
+.closing .byline { display: flex; align-items: center; gap: 1.6rem; font-size: 2rem; }
+.closing .byline .handle { color: var(--muted); }
+.links { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.4rem; }
+.links .label { display: block; font-family: var(--font-mono); font-size: 1.2rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.links .ic { font-size: 1.8rem; }
+.qr { width: 14rem; aspect-ratio: 1; }
+.qr img { width: 100%; display: block; }
+
+/* Placeholders: dashed boxes that say what goes there. */
+[data-placeholder] {
+  display: grid;
+  place-items: center;
+  border: 0.2rem dashed var(--rule);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2rem;
+}

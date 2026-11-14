@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{TITLE}}</title>
+<link rel="stylesheet" href="{{DECK}}/engine.css">
+<link rel="stylesheet" href="{{THEME}}/theme.css">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<!-- data-duration: when the talk should end. Set it, and data-at on each
+     chapter, from your outline; the presenter window (p) tracks your pace. -->
+<main class="deck" data-duration="30:00">
+
+<!-- ================================================================
+     A starter deck in the poster theme. Every slide shows one pattern;
+     keep the ones you need, delete the rest. The components are in
+     deck/themes/poster/CATALOG.md, the rules in deck/AUTHORING.md.
+     Present with the arrow keys; Esc zooms out; t switches to dark.
+     The theme's script (theme.ts, after the engine) numbers the slides
+     and runs the progress rule along the top edge.
+     ================================================================ -->
+
+<!-- Cover: the title as big as it goes; the promise and the speaker on the yellow -->
+<section class="slide cover" data-beat="0.1">
+	<h1 class="cover-title">{{TITLE_LINE_1}}<br><span class="t2">{{TITLE_LINE_2}}</span></h1>
+	<div class="cover-field">
+		<p class="lede">One sentence on what the room will be able to do afterwards</p>
+		<div class="byline">
+			<div class="mark">{{INITIAL}}</div><!-- or <img src="media/avatar.jpg" alt="..."> inside -->
+			<span>{{SPEAKER}} <span class="handle">{{HANDLE}}</span></span>
+		</div>
+	</div>
+	<aside class="notes">
+		<p>Who you are in one line, then straight into the level-set. No agenda slide.</p>
+	</aside>
+</section>
+
+<!-- Split: two ideas in columns, each on its own click -->
+<section class="slide" data-beat="0.2">
+	<div class="corner-tag">{{TITLE}}</div>
+	<h2 class="headline h-lg">Two ways to do the thing</h2>
+	<div class="fill-center">
+	<div class="split">
+		<div class="split-col" data-build>
+			<span class="split-n">A</span>
+			<h3>The usual way</h3>
+			<ol>
+				<li>First step, in plain words</li>
+				<li>Second step</li>
+				<li>Third step</li>
+			</ol>
+			<p class="split-foot">What it is good at. What it costs.</p>
+		</div>
+		<div class="split-col" data-build>
+			<span class="split-n">B</span>
+			<h3 class="hl">The other way</h3>
+			<ol>
+				<li>First step, in plain words</li>
+				<li>Second step</li>
+				<li>Third step</li>
+			</ol>
+			<p class="split-foot">What it is good at. What it costs.</p>
+		</div>
+	</div>
+	<p class="statement" data-build>The one sentence this talk adds to that picture.</p>
+	</div>
+	<aside class="notes">
+		<p>Define every term the first time it is on screen. Each column arrives on its own click.</p>
+	</aside>
+</section>
+
+<!-- Tally: costs or claims, a giant numeral each, one per click -->
+<section class="slide" data-beat="0.3">
+	<div class="corner-tag">{{TITLE}}</div>
+	<h2 class="headline h-lg">What the usual way costs</h2>
+	<div class="fill-center">
+		<ul class="tally">
+			<li data-build><span class="n">01</span><span class="t">A concrete cost, stated plainly</span></li>
+			<li data-build><span class="n">02</span><span class="t">Another one<span class="sub">A short qualifier in a smaller line.</span></span></li>
+			<li data-build><span class="n">03</span><span class="t">A third one</span></li>
+		</ul>
+		<p class="statement" data-build>The takeaway, in one line.</p>
+	</div>
+	<aside class="notes"><p>Walk the columns one click at a time.</p></aside>
+</section>
+
+<!-- Chapter: one per part; data-at is when you should reach it -->
+<section class="slide divider chapter" data-at="5:00" data-beat="1.1">
+	<div class="bleed" aria-hidden="true"><span class="chapter-big">1</span></div>
+	<p class="chapter-num">Part one</p>
+	<h2 class="chapter-title">First part</h2>
+	<p class="chapter-q">The question this part answers, in one line.</p>
+	<aside class="notes"><p>Chapters cut in on a slanted edge: the room knows a new part started.</p></aside>
+</section>
+
+<!-- Teaching slide: headline, one code band with its file name, a takeaway -->
+<section class="slide" data-beat="1.2">
+	<div class="corner-tag">Part one</div>
+	<h2 class="headline h-lg">A headline that states the point</h2>
+	<div class="fill-center">
+	<figure class="code-frame" data-file="main.go">
+<pre><span class="tk-k">func</span> <span class="tk-f">main</span>() {
+	fmt.<span class="tk-f">Println</span>(<span class="tk-s">"hello"</span>) <span class="tk-c">// hand-highlighted spans</span>
+}</pre>
+	</figure>
+	<p class="lede" data-build>The one thing to notice in that code.</p>
+	</div>
+	<aside class="notes"><p>The headline and the code arrive with the slide; the takeaway is a build.</p></aside>
+</section>
+
+<!-- Code that changes: phase 1 is the old code, the next click plays the change in -->
+<section class="slide delta-reveal" data-phases="2" data-beat="1.3">
+	<div class="corner-tag">Part one</div>
+	<h2 class="headline h-lg">The same code, one step further</h2>
+	<div class="fill-center">
+	<figure class="code-frame" data-file="main.go"><div class="code-lines">
+		<div class="dl"><span class="tk-k">func</span> <span class="tk-f">main</span>() {</div>
+		<div class="dl dl-add">	log.<span class="tk-f">Println</span>(<span class="tk-s">"starting"</span>)</div>
+		<div class="dl dl-chg">	fmt.<span class="tk-f">Println</span>(<span class="chip-old"><span class="tk-s">"hello"</span></span> <span class="chip-new"><span class="tk-s">"hello, room"</span></span>)</div>
+		<div class="dl">}</div>
+	</div></figure>
+	</div>
+	<aside class="notes"><p>Added lines grow in smoothly; changed tokens show old and new.</p></aside>
+</section>
+
+<!-- Points beside figures -->
+<section class="slide" data-beat="2.1">
+	<div class="corner-tag">Part two</div>
+	<h2 class="headline h-lg">Why this tool</h2>
+	<div class="fill-center">
+	<div class="duo">
+		<ul class="points">
+			<li data-build><strong>First reason.</strong> One sentence on why it matters.</li>
+			<li data-build><strong>Second reason.</strong> One sentence.</li>
+			<li data-build><strong>Third reason.</strong> One sentence.</li>
+		</ul>
+		<div class="figures" data-build>
+			<div class="figure hero" data-src="S1.1"><div class="figure-n">&lt; 6 kB</div><div class="figure-l">the number you want them to remember</div></div>
+			<div class="figure" data-src="S2.1"><div class="figure-n">~45 kB</div><div class="figure-l">what it is being compared to</div></div>
+		</div>
+	</div>
+	</div>
+	<aside class="notes"><p>Only claim numbers you measured or can cite: data-src names the fact in sources/digest.md. Someone else's fact gets a source line on the slide.</p></aside>
+</section>
+
+<!-- Flow: steps under hard rules, joined by arrows, one step per click -->
+<section class="slide" data-beat="2.2">
+	<div class="corner-tag">Part two</div>
+	<h2 class="headline h-lg">What happens on a click</h2>
+	<div class="fill-center">
+	<div class="flow">
+		<div class="flow-node" data-build="1"><span class="flow-who">Browser</span><span class="flow-what">The user clicks</span></div>
+		<div class="flow-arrow" data-build="2"><code>GET /thing</code><svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="10" x2="86" y2="10"/><path d="M82 0 L100 10 L82 20 Z"/></svg></div>
+		<div class="flow-node key" data-build="2"><span class="flow-who">Server</span><span class="flow-what">Does the work</span></div>
+		<div class="flow-arrow" data-build="3"><code>200 &middot; html</code><svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="10" x2="86" y2="10"/><path d="M82 0 L100 10 L82 20 Z"/></svg></div>
+		<div class="flow-node" data-build="3"><span class="flow-who">Browser</span><span class="flow-what">Shows the result</span></div>
+	</div>
+	</div>
+	<aside class="notes"><p>data-build="N" puts several elements on the same click.</p></aside>
+</section>
+
+<!-- Wall: a pain point shown, then played, then the poster wipes over it -->
+<section class="slide mode-wall wall" data-phases="3" data-beat="2.3">
+	<div class="corner-tag">Part two</div>
+	<div class="wall-stage">
+		<div class="mock-browser" style="width:70rem;height:44rem">
+			<div class="mock-chrome"><span class="mock-dots"><i></i><i></i><i></i></span><span class="mock-url">/somewhere</span></div>
+			<div class="mock-viewport">
+				<div class="skel w45"></div><div class="skel w75"></div><div class="skel w60"></div><div class="skel w90"></div>
+			</div>
+		</div>
+		<div class="wall-note" style="top:12rem;right:20rem">what goes wrong</div>
+	</div>
+	<div class="wall-poster">
+		<h2 class="wall-slam">The pain, in five words &rarr;<br><em>the consequence.</em></h2>
+		<p class="wall-principle">The principle that fixes it.</p>
+	</div>
+	<aside class="notes"><p>Click 1 shows the setup, click 2 plays the pain (style it in theme.css), click 3 wipes the poster over it.</p></aside>
+</section>
+
+<!-- Demo: what to watch, how to run it, a link, and a silent fallback clip.
+     data-demo is the server the live demo needs (the deck warns if it is down);
+     data-time is how long the demo runs. -->
+<section class="slide mode-demo" data-demo="http://localhost:8080/" data-time="2m" data-beat="2.4">
+	<div class="corner-tag">Demo 1 &middot; ~2 min</div>
+	<div class="demo-grid">
+		<div class="demo-side">
+			<h2 class="headline h-md">What the demo shows</h2>
+			<ul class="points">
+				<li>The first thing to watch</li>
+				<li>The second thing</li>
+				<li>What should not happen</li>
+			</ul>
+			<code class="demo-run">cd demo/step-1 &amp;&amp; go run .</code>
+			<a class="demo-link" href="https://example.com/code">where the code lives</a>
+		</div>
+		<!-- Record a clip with ../clips/demo-1.ts (bun {{TALK}}/clips/demo-1.ts) and swap this for:
+		     <figure class="demo-clip"><video src="media/demo-1.mp4" muted loop playsinline data-autoplay></video></figure> -->
+		<div class="placeholder demo-clip" data-placeholder="demo 1 fallback clip" style="aspect-ratio:1.6">Demo 1 fallback clip</div>
+	</div>
+	<aside class="notes">
+		<p><em>Fallback: if the live demo misbehaves, press v to play the clip full size and narrate it.</em></p>
+		<p>Shot list, step by step.</p>
+	</aside>
+</section>
+
+<!-- Anchor: one line to remember, nothing else -->
+<section class="slide mode-anchor" data-beat="3.1">
+	<h2 class="anchor-line">The one line<br>you want quoted.</h2>
+	<p class="anchor-sub">A smaller line that explains it.</p>
+	<aside class="notes"><p>Say it slowly, then pause.</p></aside>
+</section>
+
+<!-- Credits: the engine lists every source by someone else that a slide
+     cites (data-src naming a "Kind: other" source in sources/digest.md) -->
+<section class="slide credits-slide" data-beat="3.2">
+	<div class="corner-tag">Sources</div>
+	<h2 class="headline h-lg">Sources</h2>
+	<div class="fill-center" data-credits></div>
+	<aside class="notes"><p>Leave it up for questions, or click past it.</p></aside>
+</section>
+
+<!-- Closing: thanks on a yellow band, where to find things, a QR code, a real screenshot -->
+<section class="slide closing-slide" data-beat="3.3">
+	<div class="corner-tag">Thank you</div>
+	<h2 class="headline thanks">Thank <span class="hl">you</span></h2>
+	<div class="closing">
+		<div class="closing-main">
+			<div class="byline">
+				<div class="mark">{{INITIAL}}</div>
+				<span>{{SPEAKER}} <span class="handle">{{HANDLE}}</span></span>
+			</div>
+			<ul class="links">
+				<li><span class="label">Slides and code</span><span class="ic">example.com/slides</span></li>
+				<li><span class="label">Read more</span><span class="ic">example.com/post</span></li>
+			</ul>
+		</div>
+		<div class="placeholder qr" data-placeholder="slides QR">Slides QR</div>
+		<div class="placeholder" data-placeholder="a real screenshot of the thing" style="aspect-ratio:1.6">A real screenshot</div>
+	</div>
+	<aside class="notes"><p>Thank the room, point at the links, open Q&amp;A.</p></aside>
+</section>
+
+</main>
+<script src="{{DECK}}/engine.ts"></script>
+<script src="{{THEME}}/theme.ts"></script>
+</body>
+</html>

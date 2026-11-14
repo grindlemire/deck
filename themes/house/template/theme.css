@@ -1,0 +1,26 @@
+/* ============================================================
+   {{TITLE}} / theme.css
+   This talk's own pieces, on top of deck/themes/house/theme.css.
+   Start empty and only add what this talk needs: its diagrams,
+   its wall choreography, a different accent. Every house token
+   can be overridden here.
+   ============================================================ */
+
+/* Optional: give your sections their own colors (footer squares,
+   divider track, title pills). Keep them in both scopes so walls and
+   demo slides pick them up too.
+
+:root,
+.mode-wall,
+.mode-demo {
+  --series-1: var(--ink-50);
+  --series-2: var(--add);
+  --series-3: var(--blue);
+}
+*/
+
+/* The wall's second click: show what goes wrong. Each wall in a talk
+   usually gets its own phase-2 animation here. */
+.wall[data-phase="2"] .wall-note {
+  opacity: 1;
+}

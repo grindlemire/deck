@@ -1,0 +1,18 @@
+{
+  // The command-line side, run by bun: strict.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  // template/clips/*.ts is left out: its imports are {{placeholders}}
+  // that `deck new` fills in.
+  "include": ["*.ts"],
+  "exclude": ["engine.ts", "lint.ts", "story.ts", "dev-client.ts"]
+}

@@ -1,0 +1,15 @@
+/* ============================================================
+   {{TITLE}} / theme.css
+   This talk's own pieces, on top of deck/themes/paper/theme.css.
+   Start empty and only add what this talk needs: its diagrams, its
+   wall's second click, a different accent. Every token can be
+   overridden here, in both scopes:
+
+:root { --accent: #2f6f8f; --accent-fill: #2f6f8f; }
+:root[data-theme="dark"] { --accent: #8fd0f0; }
+   ============================================================ */
+
+/* The wall's second click: show what goes wrong. */
+.wall[data-phase="2"] .wall-stage .mock-browser {
+  outline: 0.4rem solid var(--accent-fill);
+}

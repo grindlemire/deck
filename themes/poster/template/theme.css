@@ -1,0 +1,19 @@
+/* ============================================================
+   {{TITLE}} / theme.css
+   This talk's own pieces, on top of deck/themes/poster/theme.css.
+   Start empty and only add what this talk needs: its diagrams, its
+   wall's second click, a different loud color. Every token can be
+   overridden here, in both scopes. The loud color is --field (with
+   --accent to match); keep --on-field readable on it:
+
+:root, :root[data-theme="dark"] { --field: #ff5a1f; --accent: #ff5a1f; }
+
+   Motion too, on :root: --dk-slide-in: dk-fade-in for quieter slide
+   changes, --dk-build-from: none for builds that fade instead of slam.
+   ============================================================ */
+
+/* The wall's second click: show what goes wrong. */
+.wall[data-phase="2"] .wall-stage .mock-browser {
+  transform: rotate(-1.5deg);
+  box-shadow: 1.6rem 1.6rem 0 var(--field);
+}
