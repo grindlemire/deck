@@ -65,15 +65,6 @@
 (() => {
   "use strict";
 
-  // What this browser saved under deck's old name (deckkit-theme,
-  // deckkit:lead-key and the rest) carries over, once.
-  try {
-    for (const k of Object.keys(localStorage)) {
-      const to = k.replace(/^deckkit/, "deck");
-      if (to !== k && localStorage.getItem(to) === null) localStorage.setItem(to, localStorage.getItem(k)!);
-    }
-  } catch {}
-
   const deck = document.querySelector<HTMLElement>(".deck");
   if (!deck) return;
 
