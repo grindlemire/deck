@@ -2,7 +2,7 @@
  * deck / publish.ts
  * deck publish: every talk's deck as one static site, for hosting.
  *
- *     bun deck publish [--out site] [--base https://example.com]
+ *     bun deck publish [--out site] [--base https://example.com] [--static]
  *
  * Finds each <talk>/deck/slides.html beside deck.config.json (else in the
  * current directory), builds it (build.ts), and writes
@@ -28,6 +28,12 @@
  * hands publishSite the origin phones reach it on, and each deck that
  * shows media/qr-follow.svg gets a QR for that instead (that one
  * needs the qrcode package).
+ *
+ * --static is for a host with no deck/server (GitHub Pages, any static
+ * host): no notes.json, so the speaker notes are not published at all;
+ * decks that know no server, so they show no Go live and ask for no key;
+ * relative links, so the site works under any path (you.github.io/repo/);
+ * and a .nojekyll, so GitHub Pages serves the files as they are.
  * ============================================================ */
 import fs from "node:fs";
 import path from "node:path";
@@ -44,11 +50,13 @@ export type PublishOptions = {
   base?: string;
   /* The origin each deck's follow-along QR points at instead. */
   follow?: string;
+  /* For a static host: no notes, no follow-along, relative links. */
+  static?: boolean;
 };
 
 export async function run(argv: string[]): Promise<string> {
   const args = parseArgs(argv, ["out", "base"]);
-  return publishSite({ out: args.opt("out"), base: args.opt("base") });
+  return publishSite({ out: args.opt("out"), base: args.opt("base"), static: args.flag("static") });
 }
 
 /* Publishes the site; returns where it went. */
@@ -61,6 +69,13 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
   // site in deck.config.json. Without one, decks publish without them.
   const base = (opts.base ?? (process.env.SITE_URL || config.site)).replace(/\/+$/, "");
   const prefix = config.prefix;
+  const still = !!opts.static;
+  // Where the talk list and each deck link to. The server serves a deck
+  // at <prefix>/<talk>, without a trailing slash, so its links are from
+  // the site's root; a static host serves the folder at <talk>/, so
+  // links relative to the page work under any path.
+  const listHref = (name: string) => (still ? `${name}/` : `${prefix}/${name}`);
+  const deckHref = (name: string, file: string) => (still ? file : `${prefix}/${name}/${file}`);
   const talksDir = path.join(out, ...prefix.split("/").filter(Boolean));
   if (!base && !opts.follow) console.warn('warning: no site in deck.config.json (or --base): link previews will have no URL or image');
   const SHARE = ["og.png", "favicon.png", "apple-touch-icon.png"];
@@ -97,10 +112,12 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
     const share = SHARE.filter((f) => fs.existsSync(path.join(deck, "share", f)));
     for (const f of share) fs.copyFileSync(path.join(deck, "share", f), path.join(dest, f));
     if (share.length < SHARE.length) console.warn(`warning: ${name} has no share images: run bun deck check ${name}`);
-    const url = base && `${base}${prefix}/${name}`;
+    if (still && src.includes("media/qr-follow.svg"))
+      console.warn(`warning: ${name} shows a follow-along QR code, and a static site has no follow-along`);
+    const url = base && `${base}${prefix}/${name}${still ? "/" : ""}`;
     const head = [
-      share.includes("favicon.png") && `<link rel="icon" type="image/png" href="${prefix}/${name}/favicon.png">`,
-      share.includes("apple-touch-icon.png") && `<link rel="apple-touch-icon" href="${prefix}/${name}/apple-touch-icon.png">`,
+      share.includes("favicon.png") && `<link rel="icon" type="image/png" href="${deckHref(name, "favicon.png")}">`,
+      share.includes("apple-touch-icon.png") && `<link rel="apple-touch-icon" href="${deckHref(name, "apple-touch-icon.png")}">`,
       tagline && `<meta name="description" content="${esc(tagline)}">`,
       `<meta property="og:type" content="website">`,
       url && `<meta property="og:url" content="${esc(url)}">`,
@@ -108,7 +125,7 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
       tagline && `<meta property="og:description" content="${esc(tagline)}">`,
       ...(url && share.includes("og.png")
         ? [
-            `<meta property="og:image" content="${esc(url)}/og.png">`,
+            `<meta property="og:image" content="${esc(url.replace(/\/$/, ""))}/og.png">`,
             `<meta property="og:image:width" content="1200">`,
             `<meta property="og:image:height" content="630">`,
             `<meta name="twitter:card" content="summary_large_image">`,
@@ -123,8 +140,11 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
       .readFileSync(path.join(deck, "dist", "index.html"), "utf8")
       .replace(/<\/title>/i, (t) => `${t}\n${head.join("\n")}`)
       // Naming the talk marks the deck as published, so it goes live on
-      // the server that serves it.
-      .replace(/<script type="application\/json" id="dk-config">.*?<\/script>/, () => configTag(config, name))
+      // the server that serves it. On a static host there is none: no
+      // site and no talk, so the deck has nowhere to go live.
+      .replace(/<script type="application\/json" id="dk-config">.*?<\/script>/, () =>
+        still ? configTag({ site: "", prefix: "" }) : configTag(config, name),
+      )
       .replace(/<section\b[^>]*\bclass="[^"]*\bslide\b[^"]*"[^>]*>[\s\S]*?<\/section>/g, (slide) => {
         let note = "";
         const bare = slide.replace(/\s*<aside class="notes">([\s\S]*?)<\/aside>/, (_, html) => {
@@ -135,7 +155,7 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
         return bare;
       });
     fs.writeFileSync(path.join(dest, "index.html"), built);
-    fs.writeFileSync(path.join(dest, "notes.json"), JSON.stringify(notes));
+    if (!still) fs.writeFileSync(path.join(dest, "notes.json"), JSON.stringify(notes));
   }
 
   const page = (title: string, body: string, head = "") => `<!doctype html>
@@ -171,20 +191,24 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
     page(
       "Talks",
       `<h1>Talks</h1>\n<ul>\n${listed
-        .map((t) => `  <li><a href="${esc(prefix)}/${esc(t.name)}"><b>${esc(t.title)}</b>${t.tagline ? `<span>${esc(t.tagline)}</span>` : ""}</a></li>`)
+        .map((t) => `  <li><a href="${esc(listHref(t.name))}"><b>${esc(t.title)}</b>${t.tagline ? `<span>${esc(t.tagline)}</span>` : ""}</a></li>`)
         .join("\n")}\n</ul>`,
-      `<link rel="icon" type="image/svg+xml" href="${esc(prefix)}/favicon.svg">\n<meta property="og:title" content="Talks">\n${base ? `<meta property="og:url" content="${esc(base + (prefix || "/"))}">\n` : ""}`,
+      `<link rel="icon" type="image/svg+xml" href="${still ? "favicon.svg" : esc(prefix) + "/favicon.svg"}">\n<meta property="og:title" content="Talks">\n${base ? `<meta property="og:url" content="${esc(base + (prefix || "/") + (still && prefix ? "/" : ""))}">\n` : ""}`,
     ),
   );
   fs.copyFileSync(path.join(tool, "favicon.svg"), path.join(talksDir, "favicon.svg"));
-  if (prefix)
+  if (prefix) {
+    const to = still ? `${prefix.replace(/^\/+/, "")}/` : prefix;
     fs.writeFileSync(
       path.join(out, "index.html"),
-      `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${esc(prefix)}"><a href="${esc(prefix)}">Talks</a>\n`,
+      `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${esc(to)}"><a href="${esc(to)}">Talks</a>\n`,
     );
-  fs.writeFileSync(path.join(out, "deck-site.json"), JSON.stringify({ prefix }) + "\n");
+  }
+  if (still) fs.writeFileSync(path.join(out, ".nojekyll"), "");
+  else fs.writeFileSync(path.join(out, "deck-site.json"), JSON.stringify({ prefix }) + "\n");
 
   console.log(`published ${listed.length} talk(s) to ${path.relative(process.cwd(), out) || "."}`);
-  for (const t of listed) console.log(`  ${prefix}/${t.name}  ${t.title}`);
+  for (const t of listed) console.log(`  ${prefix}/${t.name}${still ? "/" : ""}  ${t.title}`);
+  if (still) console.log("static: no speaker notes and no follow-along; the links work under any path");
   return out;
 }
