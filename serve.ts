@@ -12,7 +12,7 @@
  * network you are on now. --base points the QRs somewhere else (the
  * origin phones reach this server on). The key that leads a talk is
  * DECK_LEAD_KEY, else one made up and printed. --ip-header only
- * behind a proxy that sets it (see the README). To host for real,
+ * behind a proxy that sets it (see REFERENCE.md). To host for real,
  * build deck/server once and run it on the site that deck
  * publish writes (deploy/ in deck has a Dockerfile).
  * ============================================================ */

@@ -180,7 +180,7 @@ motion settings and theme scripts are in [THEMES.md](THEMES.md).
   and audience windows (and to followers' phones); drag to draw ink, `c`
   clears it.
 - `e` hides or shows the audience's emoji reactions on this screen.
-- `g` goes live: phones on the talk's `/live` URL follow. See the README's
+- `g` goes live: phones on the talk's `/live` URL follow. See REFERENCE.md's
   Follow-along section.
 - `h` (dev server only) opens the headline readout: every headline by
   section, with each section's question, planned against estimated

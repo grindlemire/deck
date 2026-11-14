@@ -41,7 +41,7 @@ const help = () => {
   console.log("\nA talk is a folder with deck/slides.html; <talk> is that folder, and can be left out when there is only one.");
   console.log(`talks:  ${talks.length ? talks.join(", ") : "none yet"}`);
   console.log(`themes: ${listThemes().join(", ")} (new --theme)`);
-  console.log("settings: none needed; deck.config.json when you host (see deck's README.md)");
+  console.log("settings: none needed; deck.config.json when you host (see deck's REFERENCE.md)");
 };
 
 const [name, ...argv] = process.argv.slice(2);

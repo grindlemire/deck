@@ -2,7 +2,7 @@
  * deck / engine.ts
  * Slide lifecycle, keyboard nav, build phases, hash routing,
  * speaker notes, overview grid. Zero dependencies, no talk
- * content. See README.md for the authoring contract.
+ * content. See REFERENCE.md for the authoring contract.
  *
  * Keys:
  *   ArrowRight / Space / PageDown / ArrowDown   advance (phase-aware)
