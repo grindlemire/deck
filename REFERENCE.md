@@ -217,7 +217,10 @@ bun deck publish [--out site] [--base https://example.com] [--static]
 ```
 
 Builds every `<talk>/deck` and writes a static site: `site/talks/<talk>/` is
-each deck, `site/talks/` lists them.
+each deck, and `site/talks/` lists them, each with its title slide
+(`og.png`, below) as a preview. `site/404.html` is the page for an address
+with nothing at it, with a link back to the list; `deck/server` and
+GitHub Pages both serve it.
 
 Each deck gets a link preview and tab icons from `<talk>/deck/share/`:
 `og.png` (the title slide at 1200x630, dark theme), `favicon.png` and

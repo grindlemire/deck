@@ -14,9 +14,12 @@
  *     site/talks/<talk>/og.png,      the link preview and tab icons, copied
  *       favicon.png,                 from <talk>/deck/share/ (deck check
  *       apple-touch-icon.png         renders them; commit them)
- *     site/talks/index.html          a list of every talk, with
+ *     site/talks/index.html          a list of every talk, each with its
+ *                                    title slide (og.png) as a preview
  *     site/talks/favicon.svg         deck/favicon.svg as its icon
  *     site/index.html                a pointer to /talks
+ *     site/404.html                  the page for an address with nothing
+ *                                    at it, linking to the list
  *     site/deck-site.json         the prefix, for deck/server
  *
  * talks/ is the prefix in deck.config.json (config.ts); with an empty
@@ -76,6 +79,8 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
   // links relative to the page work under any path.
   const listHref = (name: string) => (still ? `${name}/` : `${prefix}/${name}`);
   const deckHref = (name: string, file: string) => (still ? file : `${prefix}/${name}/${file}`);
+  // A talk's file, linked from the list.
+  const listFile = (name: string, file: string) => (still ? `${name}/${file}` : `${prefix}/${name}/${file}`);
   const talksDir = path.join(out, ...prefix.split("/").filter(Boolean));
   if (!base && !opts.follow) console.warn('warning: no site in deck.config.json (or --base): link previews will have no URL or image');
   const SHARE = ["og.png", "favicon.png", "apple-touch-icon.png"];
@@ -107,9 +112,9 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
     const src = fs.readFileSync(path.join(deck, "slides.html"), "utf8");
     const title = text(src.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || name);
     const tagline = text(src.match(/class="title-tagline"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "");
-    listed.push({ name, title, tagline });
 
     const share = SHARE.filter((f) => fs.existsSync(path.join(deck, "share", f)));
+    listed.push({ name, title, tagline, preview: share.includes("og.png") });
     for (const f of share) fs.copyFileSync(path.join(deck, "share", f), path.join(dest, f));
     if (share.length < SHARE.length) console.warn(`warning: ${name} has no share images: run bun deck check ${name}`);
     if (still && src.includes("media/qr-follow.svg"))
@@ -168,14 +173,19 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
     :root { color-scheme: light dark; --bg: #0e1116; --ink: #e8eaed; --muted: #9ba1ac; --line: rgba(255,255,255,0.1); --accent: #5aa0ff; }
     @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --ink: #1c2128; --muted: #47505a; --line: rgba(20,24,31,0.12); --accent: #0868d1; } }
     body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 64px 16px; }
+    main { max-width: 1040px; margin: 0 auto; padding: 64px 16px; }
     h1 { margin: 0 0 32px; font-size: 32px; letter-spacing: -0.02em; }
-    ul { list-style: none; margin: 0; padding: 0; }
-    li { border-top: 1px solid var(--line); }
-    a { display: block; padding: 18px 0; color: inherit; text-decoration: none; }
-    a b { display: block; font-size: 20px; color: var(--accent); }
-    a span { color: var(--muted); }
-    a:hover b { text-decoration: underline; }
+    .talks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: 40px 28px; list-style: none; margin: 0; padding: 0; }
+    .talks a { display: block; color: inherit; text-decoration: none; }
+    .talks img, .talks .card { display: block; box-sizing: border-box; width: 100%; height: auto; aspect-ratio: 1200 / 630; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--line); transition: transform 0.15s ease, border-color 0.15s ease; }
+    .talks .card { display: flex; align-items: flex-end; padding: 20px; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+    .talks a:hover img, .talks a:hover .card, .talks a:focus-visible img, .talks a:focus-visible .card { border-color: var(--accent); transform: translateY(-2px); }
+    .talks b { display: block; font-size: 19px; color: var(--accent); }
+    .talks span { display: block; margin-top: 4px; color: var(--muted); font-size: 15px; }
+    .lede { max-width: 560px; margin: 0 0 28px; color: var(--muted); font-size: 19px; }
+    .back { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .back:hover { text-decoration: underline; }
+    @media (prefers-reduced-motion: reduce) { .talks img, .talks .card { transition: none; } .talks a:hover img, .talks a:hover .card { transform: none; } }
   </style>
   </head>
   <body>
@@ -190,13 +200,32 @@ export async function publishSite(opts: PublishOptions = {}): Promise<string> {
     path.join(talksDir, "index.html"),
     page(
       "Talks",
-      `<h1>Talks</h1>\n<ul>\n${listed
-        .map((t) => `  <li><a href="${esc(listHref(t.name))}"><b>${esc(t.title)}</b>${t.tagline ? `<span>${esc(t.tagline)}</span>` : ""}</a></li>`)
+      `<h1>Talks</h1>\n<ul class="talks">\n${listed
+        .map((t) => {
+          const preview = t.preview
+            ? `<img src="${esc(listFile(t.name, "og.png"))}" width="1200" height="630" alt="" loading="lazy">`
+            : `<div class="card" aria-hidden="true">${esc(t.title)}</div>`;
+          return `  <li><a href="${esc(listHref(t.name))}">${preview}<b>${esc(t.title)}</b>${t.tagline ? `<span>${esc(t.tagline)}</span>` : ""}</a></li>`;
+        })
         .join("\n")}\n</ul>`,
       `<link rel="icon" type="image/svg+xml" href="${still ? "favicon.svg" : esc(prefix) + "/favicon.svg"}">\n<meta property="og:title" content="Talks">\n${base ? `<meta property="og:url" content="${esc(base + (prefix || "/") + (still && prefix ? "/" : ""))}">\n` : ""}`,
     ),
   );
   fs.copyFileSync(path.join(tool, "favicon.svg"), path.join(talksDir, "favicon.svg"));
+
+  // The 404 page can be served at any address, so its links are absolute:
+  // from the site's root on the server, and on --base on a static host
+  // (GitHub Pages serves a project site under /<repo>/).
+  const home = !still ? prefix || "/" : `${base}${prefix}/`;
+  const icon = still ? base && `${base}${prefix}/favicon.svg` : `${prefix}/favicon.svg`;
+  fs.writeFileSync(
+    path.join(out, "404.html"),
+    page(
+      "Page not found",
+      `<h1>Page not found</h1>\n<p class="lede">There's nothing at this address. The link may be mistyped, or the page may have moved.</p>\n<p><a class="back" href="${esc(home)}">See all the talks</a></p>`,
+      icon ? `<link rel="icon" type="image/svg+xml" href="${esc(icon)}">\n<meta name="robots" content="noindex">\n` : `<meta name="robots" content="noindex">\n`,
+    ),
+  );
   if (prefix) {
     const to = still ? `${prefix.replace(/^\/+/, "")}/` : prefix;
     fs.writeFileSync(
