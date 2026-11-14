@@ -78,6 +78,11 @@ Press `Esc` for an overview of the whole talk. When it's done, run
 `bun deck check my-talk` to check every slide in light and dark and build
 `dist/index.html`, the single-file copy.
 
+To share it, `bun deck pdf my-talk` makes a PDF, one slide a page
+(`--notes` adds your speaker notes under each slide, for a handout), and
+`bun deck md my-talk` writes the talk as Markdown, a good start on a blog
+post.
+
 ## Giving the talk
 
 ![The presenter window: the current slide, notes, the next slide, a timer and the time to reach each coming slide](docs/presenter.png)

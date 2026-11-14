@@ -16,6 +16,8 @@ bun deck check [talk]               every slide in light and dark, the outline,
                                        share images; builds dist/ (offline copy)
 bun deck check [talk] --outline     only the outline and sources, no browser
 bun deck theme <name> --from paper  start a theme of your own (THEMES.md)
+bun deck pdf [talk]                 the talk as a PDF, a slide a page [--notes: a handout]
+bun deck md [talk]                  the talk as Markdown: each slide's text, then its notes
 bun deck qr [talk | url]            a QR code: the talk's follow-along URL, or any URL
 bun deck serve                      give the talks from this laptop, with the follow-along (Go)
 bun deck publish                    every talk as one static site in site/, for hosting
@@ -31,8 +33,9 @@ when there is only one talk. Demo fallback clips are scripts:
 ```
 deck/
   index.ts        the deck command
-  new.ts dev.ts check.ts qr.ts publish.ts serve.ts
+  new.ts dev.ts check.ts qr.ts publish.ts serve.ts pdf.ts md.ts
                   one file per command
+  export.ts       the built deck open in Chromium, for pdf and md
   build.ts        single-file assembler (check and publish run it)
   engine.ts       slide lifecycle, keys, phases and builds, magic move, zoom
                   overview, jump to slide, notes, light/dark, video, blank
@@ -241,6 +244,31 @@ show no Go live and ask for no key, writes relative links so the site
 works under any path (`you.github.io/repo/`), and adds a `.nojekyll`.
 It warns about a talk that shows a follow-along QR code, since nothing
 answers it. `deploy/github-pages.yml` runs it on every push.
+
+### Export: PDF and Markdown
+
+```
+bun deck pdf my-talk [--mode dark|light] [--notes] [--out file.pdf]
+bun deck md my-talk [--no-notes] [--out file.md | --out -]
+```
+
+Both build the deck and read it in Chromium (Playwright, as `check`
+does), each slide at its last build step, and write into the deck's
+`dist/` unless `--out` says where.
+
+`pdf` makes a page of each slide: a 1920x1080 picture of it, so the
+theme's fonts, scripts and motion end states come out exactly as the
+room sees them (the text is not selectable). `--mode` picks light or
+dark; without it, the deck's default. `--notes` makes a handout
+instead: a Letter page per slide, the slide on top and its speaker
+notes under it.
+
+`md` writes `## <n>. <headline>` for each slide, then what is on it:
+paragraphs, lists, tables, code (a `diff` block for a delta slide),
+quotes, a line for each picture, video, diagram or placeholder, and the
+slide's source line. Its speaker notes follow as a quote (`--no-notes`
+leaves them out). It reads the slide as laid out, so whatever is hidden
+in the current theme stays out. `--out -` prints it.
 
 ### Lint
 

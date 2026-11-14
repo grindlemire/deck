@@ -25,6 +25,8 @@ const commands: Record<string, { about: string; usage: string; load: () => Promi
     usage: "theme <name> [--from paper]",
     load: () => import("./theme.ts"),
   },
+  pdf: { about: "the talk as a PDF, a slide a page (--notes: a handout)", usage: "pdf [talk] [--mode dark|light] [--notes] [--out file.pdf]", load: () => import("./pdf.ts") },
+  md: { about: "the talk as Markdown: each slide's text, then its notes", usage: "md [talk] [--no-notes] [--out file.md | -]", load: () => import("./md.ts") },
   qr: { about: "a QR code: the talk's follow-along URL, or any URL", usage: "qr [talk | url] [--out file.svg]", load: () => import("./qr.ts") },
   publish: { about: "every talk as one static site", usage: "publish [--out site] [--base https://example.com] [--static]", load: () => import("./publish.ts") },
   serve: { about: "publish, then host it for the phones in the room (Go)", usage: "serve [--addr :8080] [--base URL] [--ip-header X-Real-IP]", load: () => import("./serve.ts") },
