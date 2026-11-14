@@ -1747,6 +1747,9 @@
       const liveButton = $('[data-act="live"]');
       liveButton.textContent = on ? "Stop" : "Go live";
       liveButton.classList.toggle("dk-primary", !on);
+      // Shown once the audience window says it has a server to go live
+      // on: a static site, or a local copy with no site, has none.
+      liveButton.hidden = !on && !r?.can;
       const liveState = $(".dk-pv-live-state");
       liveState.textContent = on
         ? r.followers == null
