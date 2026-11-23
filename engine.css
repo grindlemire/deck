@@ -1649,7 +1649,10 @@ body.dk-presenter {
   font-variant-numeric: tabular-nums;
 }
 
-.dk-pv button {
+/* The presenter's own controls. Not the buttons on a slide: the current
+   slide and the "next" preview sit inside .dk-pv too, and they keep the
+   talk's styles, sized in rem with the slide. */
+.dk-pv button:not(.slide button) {
   padding: 5px 12px;
   font: inherit;
   font-size: 13px;
@@ -1660,7 +1663,7 @@ body.dk-presenter {
   cursor: pointer;
 }
 
-.dk-pv button:hover {
+.dk-pv button:not(.slide button):hover {
   border-color: #5f6b78;
 }
 
@@ -1705,7 +1708,7 @@ body.dk-presenter {
 .dk-pv-link[data-state="blank"] { color: #f0b429; }
 .dk-pv-link[data-state="blank"]::before { background: #f0b429; }
 
-.dk-pv button.dk-primary {
+.dk-pv button.dk-primary:not(.slide button) {
   color: var(--on-accent, #ffffff);
   font-weight: 600;
   background: var(--accent, #2b5cff);
