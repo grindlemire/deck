@@ -55,12 +55,12 @@ func serveSite(t *testing.T, files map[string]string) (*httptest.Server, *live) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	lv, err := newLive(st, options{key: testKey})
+	lv, err := newSiteLive(st, options{key: testKey})
 	if err != nil {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	lv.register(mux)
+	lv.register(mux, st.prefix)
 	mux.Handle("/", st)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

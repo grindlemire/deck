@@ -3,16 +3,20 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log/slog"
+	"maps"
 	"mime"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -69,21 +73,43 @@ func (f *file) serve(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", f.modTime, bytes.NewReader(body))
 }
 
+// files is what a site serves, by slash path relative to its root: a
+// published directory held in memory, or a space's manifest whose files
+// are fetched when first asked for. open answers nil, nil for a path
+// that is not there; paths lists every file.
+type files interface {
+	open(ctx context.Context, p string) (*file, error)
+	paths() []string
+}
+
+// memFiles is a directory read into memory (loadSite).
+type memFiles map[string]*file
+
+func (m memFiles) open(_ context.Context, p string) (*file, error) { return m[p], nil }
+func (m memFiles) paths() []string                                 { return slices.Collect(maps.Keys(m)) }
+
 // site serves deck publish output the way the hosts before it did:
 // /x/index.html, /x.html and /x/ redirect to /x, and /x serves
 // x/index.html, x.html or x, in that order.
 type site struct {
-	prefix  string            // where the talks are: "/talks", or "" at the root
-	files   map[string]*file  // by slash path relative to the site root
-	private map[string][]byte // notes.json files: never served as files
+	prefix string // where the talks are: "/talks", or "" at the root
+	files  files
 }
 
 // siteFile is publish.mjs's note on the site it wrote: {"prefix": ...}.
 // Without it the talks are under /talks.
 const siteFile = "deck-site.json"
 
+// servable says whether p may be served as a file: a talk's speaker
+// notes go only to the lead (see serveNotes), and deck-site.json is the
+// server's.
+func servable(p string) bool {
+	return path.Base(p) != "notes.json" && p != siteFile
+}
+
 func loadSite(dir string) (*site, error) {
-	s := &site{prefix: "/talks", files: map[string]*file{}, private: map[string][]byte{}}
+	mem := memFiles{}
+	s := &site{prefix: "/talks", files: mem}
 	root := os.DirFS(dir)
 	if b, err := fs.ReadFile(root, siteFile); err == nil {
 		var meta struct {
@@ -100,32 +126,24 @@ func loadSite(dir string) (*site, error) {
 		}
 	}
 	err := fs.WalkDir(root, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil || d.IsDir() || p == siteFile {
 			return err
 		}
 		body, err := fs.ReadFile(root, p)
 		if err != nil {
 			return err
 		}
-		if p == siteFile {
-			return nil
-		}
-		// A talk's speaker notes go only to the key (see serveNotes).
-		if path.Base(p) == "notes.json" {
-			s.private[p] = body
-			return nil
-		}
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		s.files[p] = newFile(p, body, info.ModTime())
+		mem[p] = newFile(p, body, info.ModTime())
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("load %s: %w (run bun deck publish first)", filepath.Clean(dir), err)
 	}
-	if list := s.talkPath("index.html"); s.files[list] == nil {
+	if list := s.talkPath("index.html"); mem[list] == nil {
 		return nil, fmt.Errorf("%s has no %s (run bun deck publish first)", filepath.Clean(dir), list)
 	}
 	return s, nil
@@ -141,19 +159,34 @@ func (s *site) talkPath(rel string) string {
 	return strings.TrimPrefix(s.prefix+"/"+rel, "/")
 }
 
-// talks names every published deck: <prefix>/<name>/index.html.
-func (s *site) talks() map[string]*file {
-	out := map[string]*file{}
-	for p, f := range s.files {
+// talks names every published deck, <prefix>/<name>/index.html, sorted.
+func (s *site) talks() []string {
+	var names []string
+	for _, p := range s.files.paths() {
 		rest, ok := strings.CutPrefix(p, s.talkPath(""))
 		if !ok {
 			continue
 		}
-		if name, ok := strings.CutSuffix(rest, "/index.html"); ok && !strings.Contains(name, "/") {
-			out[name] = f
+		if name, ok := strings.CutSuffix(rest, "/index.html"); ok && name != "" && !strings.Contains(name, "/") {
+			names = append(names, name)
 		}
 	}
-	return out
+	slices.Sort(names)
+	return names
+}
+
+// deck is the talk's page, nil when there is no such talk.
+func (s *site) deck(ctx context.Context, talk string) (*file, error) {
+	return s.files.open(ctx, s.talkPath(talk+"/index.html"))
+}
+
+// notes is the talk's notes.json, nil when it has none.
+func (s *site) notes(ctx context.Context, talk string) ([]byte, error) {
+	f, err := s.files.open(ctx, s.talkPath(talk+"/notes.json"))
+	if f == nil || err != nil {
+		return nil, err
+	}
+	return f.body, nil
 }
 
 func setSiteHeaders(h http.Header) {
@@ -171,6 +204,7 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p := r.URL.Path
 	if to, ok := canonical(p); ok {
+		to = publicBase(r.Context()) + to
 		if r.URL.RawQuery != "" {
 			to += "?" + r.URL.RawQuery
 		}
@@ -183,7 +217,15 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		candidates = []string{"index.html"}
 	}
 	for _, c := range candidates {
-		if f := s.files[c]; f != nil {
+		if !servable(c) {
+			continue
+		}
+		f, err := s.files.open(r.Context(), c)
+		if err != nil {
+			unavailable(w, c, err)
+			return
+		}
+		if f != nil {
 			f.serve(w, r)
 			return
 		}
@@ -191,10 +233,31 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.notFound(w, r)
 }
 
+type baseKey struct{}
+
+// withPublicBase notes the path the browser reaches this server under,
+// when a proxy in front strips one (spaces mode: X-Gate-Prefix), for the
+// URLs the server writes: redirects and the follow page's.
+func withPublicBase(ctx context.Context, base string) context.Context {
+	return context.WithValue(ctx, baseKey{}, base)
+}
+
+func publicBase(ctx context.Context) string {
+	b, _ := ctx.Value(baseKey{}).(string)
+	return b
+}
+
+// unavailable answers for a file that is there but could not be read
+// (the bucket did not answer).
+func unavailable(w http.ResponseWriter, p string, err error) {
+	slog.Error("read", "path", p, "err", err)
+	http.Error(w, "this page could not be read; try again shortly", http.StatusBadGateway)
+}
+
 // notFound answers with the site's 404.html (publish writes one), else
 // Go's plain answer.
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
-	f := s.files["404.html"]
+	f, _ := s.files.open(r.Context(), "404.html")
 	if f == nil {
 		http.NotFound(w, r)
 		return

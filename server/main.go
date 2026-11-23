@@ -70,13 +70,13 @@ func run() error {
 		_, _ = rand.Read(b)
 		key = base64.RawURLEncoding.EncodeToString(b)
 	}
-	lv, err := newLive(st, options{key: key, ipHeader: *ipHeader})
+	lv, err := newSiteLive(st, options{key: key, ipHeader: *ipHeader})
 	if err != nil {
 		return err
 	}
 
 	mux := http.NewServeMux()
-	lv.register(mux)
+	lv.register(mux, st.prefix)
 	mux.Handle("/", st)
 
 	// Cancelled on shutdown, so the open event streams end and Shutdown
@@ -95,7 +95,7 @@ func run() error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- server.ListenAndServe() }()
-	announce(lv, *addr, key, madeUp)
+	announce(st, *addr, key, madeUp)
 
 	select {
 	case err := <-errc:
@@ -112,7 +112,7 @@ func run() error {
 
 // announce prints what to open: the audience URL for each talk on this
 // machine's network, and the speaker's deck.
-func announce(lv *live, addr, key string, madeUp bool) {
+func announce(st *site, addr, key string, madeUp bool) {
 	host, port, _ := net.SplitHostPort(addr)
 	hosts := []string{}
 	if host != "" && host != "0.0.0.0" && host != "::" {
@@ -127,13 +127,14 @@ func announce(lv *live, addr, key string, madeUp bool) {
 	if len(hosts) == 0 {
 		hosts = []string{"localhost"}
 	}
-	fmt.Printf("deck server on %s, %d talk(s)\n", addr, len(lv.rooms))
-	for _, name := range lv.names {
+	names := st.talks()
+	fmt.Printf("deck server on %s, %d talk(s)\n", addr, len(names))
+	for _, name := range names {
 		fmt.Printf("\n  %s\n", name)
 		for _, h := range hosts {
-			fmt.Printf("    audience  http://%s:%s%s/%s/live\n", h, port, lv.prefix, name)
+			fmt.Printf("    audience  http://%s:%s%s/%s/live\n", h, port, st.prefix, name)
 		}
-		fmt.Printf("    you       http://127.0.0.1:%s%s/%s, then p and Go live\n", port, lv.prefix, name)
+		fmt.Printf("    you       http://127.0.0.1:%s%s/%s, then p and Go live\n", port, st.prefix, name)
 	}
 	if madeUp {
 		fmt.Printf("\n  key: %s (made up for this run; set DECK_LEAD_KEY to keep one)\n", key)

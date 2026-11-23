@@ -6,6 +6,8 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/netip"
@@ -44,23 +46,35 @@ const (
 	leadSilence = 30 * time.Second
 )
 
-// live holds one room per published talk.
+// live holds the follow-along rooms, one per talk, and serves them.
+// Which talk a request is for, and whether it may lead, is the serving
+// mode's call (find): the one published site, led with the key
+// (newSiteLive), or a space behind the gate (spaces.go).
 type live struct {
-	prefix   string // where the talks are; see site.prefix
-	key      []byte
-	ipHeader string           // the header a trusted proxy puts the visitor's address in
-	notFound http.HandlerFunc // the site's 404 page, for the follow page
-	names    []string
-	rooms    map[string]*room
-	limit    *limiter
-	streams  *streams
+	find    func(r *http.Request) talk
+	cors    bool // let any origin post: a file:// deck may lead with the key
+	mu      sync.Mutex
+	rooms   map[string]*room // by an id the mode picks: the talk, or space/talk
+	limit   *limiter
+	streams *streams
+}
+
+// talk is what a live request is for, as the serving mode found it.
+type talk struct {
+	name string
+	room *room  // nil: no such talk
+	site *site  // the talk's deck and notes, and the 404 page; nil: none
+	lead bool   // may lead the talk and read its notes
+	who  string // whom the rate limits and stream caps count
 }
 
 // room is one talk's follow-along: where the speaker is, the ink on the
 // current slide, and everyone listening.
 type room struct {
-	page  *file  // the deck in follow mode
-	notes []byte // the speaker notes (notes.json), for the key only
+	pageMu   sync.Mutex
+	page     *file  // the deck in follow mode,
+	pageDeck *file  // built from this deck
+	pageAt   string // for the talks at this public path
 
 	mu        sync.Mutex
 	led       bool      // the lead has posted since the server started
@@ -123,38 +137,99 @@ type fxMsg struct {
 	Events []fx `json:"events"`
 }
 
-// options are the server's settings (main.go reads them from flags
-// and the environment).
+func newLive(find func(*http.Request) talk, cors bool) *live {
+	return &live{
+		find:    find,
+		cors:    cors,
+		rooms:   map[string]*room{},
+		limit:   newLimiter(),
+		streams: &streams{byAddr: map[string]int{}, perAddr: maxStreamsPerAddr, max: maxStreams},
+	}
+}
+
+// options are the single-site mode's settings (main.go reads them from
+// flags and the environment).
 type options struct {
 	key      string // leads a talk and reads its notes
 	ipHeader string // see clientIP; empty trusts no header
 }
 
-func newLive(st *site, opt options) (*live, error) {
-	lv := &live{
-		prefix:   st.prefix,
-		key:      []byte(opt.key),
-		ipHeader: opt.ipHeader,
-		notFound: st.notFound,
-		rooms:    map[string]*room{},
-		limit:    newLimiter(),
-		streams:  &streams{byAddr: map[string]int{}, perAddr: maxStreamsPerAddr, max: maxStreams},
+// newSiteLive is the follow-along for one published site: a room for
+// each talk in it, led with the key, rate limited by address.
+func newSiteLive(st *site, opt options) (*live, error) {
+	key := []byte(opt.key)
+	lv := newLive(nil, true)
+	lv.find = func(r *http.Request) talk {
+		name := r.PathValue("talk")
+		got, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		return talk{
+			name: name,
+			room: lv.lookup(name),
+			site: st,
+			lead: subtle.ConstantTimeCompare([]byte(got), key) == 1,
+			who:  clientIP(r, opt.ipHeader),
+		}
 	}
-	for name, deck := range st.talks() {
-		page, err := followPage(st.prefix, name, deck)
-		if err != nil {
+	for _, name := range st.talks() {
+		deck, _ := st.deck(context.Background(), name)
+		// Built now, so a deck the follow page cannot be made from stops
+		// the server at startup.
+		if _, err := lv.room(name).followPage(st.prefix, name, deck); err != nil {
 			return nil, err
 		}
-		lv.rooms[name] = &room{
-			page:      page,
-			notes:     st.private[st.talkPath(name+"/notes.json")],
-			listeners: map[*listener]struct{}{},
-			pending:   map[string]int{},
-		}
-		lv.names = append(lv.names, name)
 	}
-	slices.Sort(lv.names)
 	return lv, nil
+}
+
+// room is the room under id, made on first use.
+func (lv *live) room(id string) *room {
+	lv.mu.Lock()
+	defer lv.mu.Unlock()
+	rm := lv.rooms[id]
+	if rm == nil {
+		rm = &room{listeners: map[*listener]struct{}{}, pending: map[string]int{}}
+		lv.rooms[id] = rm
+	}
+	return rm
+}
+
+// lookup is the room under id, nil when there is none.
+func (lv *live) lookup(id string) *room {
+	lv.mu.Lock()
+	defer lv.mu.Unlock()
+	return lv.rooms[id]
+}
+
+// drop ends the room under id, for a talk that is no longer published:
+// everyone listening is let go.
+func (lv *live) drop(id string) {
+	lv.mu.Lock()
+	rm := lv.rooms[id]
+	delete(lv.rooms, id)
+	lv.mu.Unlock()
+	if rm != nil {
+		rm.mu.Lock()
+		for l := range rm.listeners {
+			rm.dropLocked(l)
+		}
+		rm.mu.Unlock()
+	}
+}
+
+// followPage is the deck in follow mode for the talks at prefix (the
+// path the browser sees), built once per deck and prefix.
+func (rm *room) followPage(prefix, name string, deck *file) (*file, error) {
+	rm.pageMu.Lock()
+	defer rm.pageMu.Unlock()
+	if rm.page != nil && rm.pageDeck == deck && rm.pageAt == prefix {
+		return rm.page, nil
+	}
+	page, err := followPage(prefix, name, deck)
+	if err != nil {
+		return nil, err
+	}
+	rm.page, rm.pageDeck, rm.pageAt = page, deck, prefix
+	return page, nil
 }
 
 // followPage is the deck with the follow-along settings put first in its
@@ -180,12 +255,15 @@ func followPage(prefix, name string, deck *file) (*file, error) {
 	return newFile("index.html", page, deck.modTime), nil
 }
 
-func (lv *live) register(mux *http.ServeMux) {
-	at := func(method, rest string) string { return method + " " + lv.prefix + "/{talk}/" + rest }
+// register serves the talks under prefix (the path on this server).
+func (lv *live) register(mux *http.ServeMux, prefix string) {
+	at := func(method, rest string) string { return method + " " + prefix + "/{talk}/" + rest }
 	mux.HandleFunc(at("GET", "live"), lv.servePage)
 	mux.HandleFunc(at("GET", "events"), lv.serveEvents)
 	mux.HandleFunc(at("POST", "state"), lv.serveLead)
-	mux.HandleFunc(at("OPTIONS", "state"), lv.servePreflight)
+	if lv.cors {
+		mux.HandleFunc(at("OPTIONS", "state"), lv.servePreflight)
+	}
 	mux.HandleFunc(at("POST", "react"), lv.serveReact)
 	mux.HandleFunc(at("GET", "notes"), lv.serveNotes)
 }
@@ -199,7 +277,10 @@ func (lv *live) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case now := <-tick.C:
-			for _, rm := range lv.rooms {
+			lv.mu.Lock()
+			rooms := slices.Collect(maps.Values(lv.rooms))
+			lv.mu.Unlock()
+			for _, rm := range rooms {
 				rm.flushReactions()
 				rm.endIfSilent(now, leadSilence)
 			}
@@ -208,25 +289,44 @@ func (lv *live) run(ctx context.Context) {
 	}
 }
 
-func (lv *live) room(w http.ResponseWriter, r *http.Request) *room {
-	rm := lv.rooms[r.PathValue("talk")]
-	if rm == nil {
+// found is the request's talk, or a 404 (and nil) when there is none.
+func (lv *live) found(w http.ResponseWriter, r *http.Request) (talk, bool) {
+	t := lv.find(r)
+	if t.room == nil {
 		http.NotFound(w, r)
 	}
-	return rm
+	return t, t.room != nil
 }
 
 func (lv *live) servePage(w http.ResponseWriter, r *http.Request) {
 	// People reach this page from a QR code: a talk that is not here
 	// gets the site's 404 page, as any other missing page does.
-	rm := lv.rooms[r.PathValue("talk")]
-	if rm == nil {
-		lv.notFound(w, r)
+	t := lv.find(r)
+	var deck *file
+	if t.room != nil {
+		var err error
+		if deck, err = t.site.deck(r.Context(), t.name); err != nil {
+			unavailable(w, t.name, err)
+			return
+		}
+	}
+	if deck == nil {
+		if t.site != nil {
+			t.site.notFound(w, r)
+		} else {
+			http.NotFound(w, r)
+		}
+		return
+	}
+	page, err := t.room.followPage(publicBase(r.Context())+t.site.prefix, t.name, deck)
+	if err != nil {
+		slog.Error("follow page", "talk", t.name, "err", err)
+		http.Error(w, "this deck cannot be followed", http.StatusInternalServerError)
 		return
 	}
 	setSiteHeaders(w.Header())
 	w.Header().Set("Cache-Control", "no-cache")
-	rm.page.serve(w, r)
+	page.serve(w, r)
 }
 
 // The lead may be a file:// page (origin "null"), so any origin may post;
@@ -242,23 +342,21 @@ func (lv *live) servePreflight(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (lv *live) keyOK(r *http.Request) bool {
-	got, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return subtle.ConstantTimeCompare([]byte(got), lv.key) == 1
-}
-
 // serveLead takes the speaker's slide and any laser and ink since the
 // last post, and answers with how many are following.
 func (lv *live) serveLead(w http.ResponseWriter, r *http.Request) {
-	cors(w.Header())
-	rm := lv.room(w, r)
-	if rm == nil {
+	if lv.cors {
+		cors(w.Header())
+	}
+	t, ok := lv.found(w, r)
+	if !ok {
 		return
 	}
-	if !lv.keyOK(r) {
-		http.Error(w, "wrong key", http.StatusForbidden)
+	if !t.lead {
+		http.Error(w, "not allowed to lead this talk", http.StatusForbidden)
 		return
 	}
+	rm := t.room
 	var in struct {
 		Slide  *int  `json:"slide"`
 		Phase  *int  `json:"phase"`
@@ -289,21 +387,23 @@ func (lv *live) serveLead(w http.ResponseWriter, r *http.Request) {
 // serveEvents streams the room to one follower (or, with ?lead, to the
 // speaker's deck, which shows the reactions).
 func (lv *live) serveEvents(w http.ResponseWriter, r *http.Request) {
-	rm := lv.room(w, r)
-	if rm == nil {
+	t, ok := lv.found(w, r)
+	if !ok {
 		return
 	}
-	addr := clientIP(r, lv.ipHeader)
-	if !lv.streams.open(addr) {
+	if !lv.streams.open(t.who) {
 		http.Error(w, "too many open streams", http.StatusServiceUnavailable)
 		return
 	}
-	defer lv.streams.close(addr)
+	defer lv.streams.close(t.who)
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Cache-Control", "no-store")
-	h.Set("Access-Control-Allow-Origin", "*")
+	if lv.cors {
+		h.Set("Access-Control-Allow-Origin", "*")
+	}
 	h.Set("X-Accel-Buffering", "no")
+	rm := t.room
 	l := rm.join(r.URL.Query().Has("lead"))
 	defer rm.leave(l)
 
@@ -335,8 +435,8 @@ func (lv *live) serveEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (lv *live) serveReact(w http.ResponseWriter, r *http.Request) {
-	rm := lv.room(w, r)
-	if rm == nil {
+	t, ok := lv.found(w, r)
+	if !ok {
 		return
 	}
 	var in struct {
@@ -348,11 +448,11 @@ func (lv *live) serveReact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	if (in.P != "" && !lv.limit.allow("p:"+in.P, now, reactRate, reactBurst)) || !lv.limit.allow("a:"+clientIP(r, lv.ipHeader), now, addrRate, addrBurst) {
+	if (in.P != "" && !lv.limit.allow("p:"+in.P, now, reactRate, reactBurst)) || !lv.limit.allow("a:"+t.who, now, addrRate, addrBurst) {
 		http.Error(w, "slow down", http.StatusTooManyRequests)
 		return
 	}
-	rm.react(in.E)
+	t.room.react(in.E)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -565,22 +665,27 @@ func (s *streams) close(addr string) {
 	s.total--
 }
 
-// serveNotes hands the speaker notes to the key only: the published deck
-// leaves them out, so the presenter window fetches them.
+// serveNotes hands the speaker notes to the lead only: the published
+// deck leaves them out, so the presenter window fetches them.
 func (lv *live) serveNotes(w http.ResponseWriter, r *http.Request) {
-	rm := lv.room(w, r)
-	if rm == nil {
+	t, ok := lv.found(w, r)
+	if !ok {
 		return
 	}
-	if !lv.keyOK(r) {
-		http.Error(w, "wrong key", http.StatusForbidden)
+	if !t.lead {
+		http.Error(w, "not allowed to read these notes", http.StatusForbidden)
 		return
 	}
-	if rm.notes == nil {
+	notes, err := t.site.notes(r.Context(), t.name)
+	if err != nil {
+		unavailable(w, t.name+" notes", err)
+		return
+	}
+	if notes == nil {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(rm.notes)
+	_, _ = w.Write(notes)
 }
