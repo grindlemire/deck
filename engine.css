@@ -173,6 +173,36 @@ body.dk-mouse .dk-fs,
   font: 600 max(1.2rem, 15px)/1 var(--font-mono, Menlo, Consolas, monospace);
 }
 
+/* Light and dark (engine.js): a sun that morphs into a moon, left of "?".
+   The icon follows data-dk-mode, the mode actually showing. */
+.dk-fs.dk-theme-btn {
+  right: calc(1rem + 2 * (max(2.6rem, 32px) + 0.5rem));
+}
+.dk-fs.dk-theme-btn svg {
+  width: 55%;
+  height: 55%;
+  overflow: visible;
+  fill: none;
+  stroke: none;
+}
+.dk-sm-sun { transform-box: fill-box; transform-origin: center; transition: transform 0.5s cubic-bezier(0.5, 1.25, 0.75, 1.25); }
+.dk-sm-moon { transition: transform 0.25s cubic-bezier(0, 0, 0, 1); }
+.dk-sm-beams { transform-box: view-box; transform-origin: 12px 12px; transition: transform 0.5s cubic-bezier(0.5, 1.5, 0.75, 1.25), opacity 0.5s cubic-bezier(0.5, 1.5, 0.75, 1.25); }
+:root[data-dk-mode="dark"] .dk-sm-sun { transform: scale(1.75); transition-timing-function: cubic-bezier(0.25, 0, 0.3, 1); transition-duration: 0.25s; }
+:root[data-dk-mode="dark"] .dk-sm-moon { transform: translateX(-7px); transition-delay: 0.25s; transition-duration: 0.5s; }
+:root[data-dk-mode="dark"] .dk-sm-beams { opacity: 0; transform: rotate(-25deg); transition-duration: 0.15s; }
+@media (prefers-reduced-motion: reduce) {
+  .dk-sm-sun, .dk-sm-moon, .dk-sm-beams { transition: none; }
+}
+
+/* The switch: one circle, growing to dark and shrinking back to light.
+   Nothing else is lifted out while it runs, so the whole page turns. */
+html.dk-theme-vt * { view-transition-name: none !important; }
+html.dk-theme-vt::view-transition-old(root),
+html.dk-theme-vt::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.dk-theme-vt:not(.dk-theme-unreveal)::view-transition-new(root) { clip-path: circle(0px at var(--dk-reveal-x) var(--dk-reveal-y)); }
+html.dk-theme-unreveal::view-transition-old(root) { z-index: 1; }
+
 /* Key help ("?"): small and dim, bottom-left, over the slide's footer
    area; never takes keys or clicks from the deck. */
 .dk-help {
@@ -1552,6 +1582,7 @@ body.dk-overview .dk-notes {
 .dk-toast { view-transition-name: dk-chrome-toast; }
 .dk-fs { view-transition-name: dk-chrome-fs; }
 .dk-fs.dk-help-btn { view-transition-name: dk-chrome-help-btn; }
+.dk-fs.dk-theme-btn { view-transition-name: dk-chrome-theme-btn; }
 .dk-help { view-transition-name: dk-chrome-help; }
 .dk-laser { view-transition-name: dk-chrome-laser; }
 
@@ -1560,6 +1591,8 @@ body.dk-overview .dk-notes {
 ::view-transition-group(dk-chrome-toast),
 ::view-transition-group(dk-chrome-fs),
 ::view-transition-group(dk-chrome-help-btn),
+::view-transition-group(dk-chrome-theme-btn),
+::view-transition-new(dk-chrome-theme-btn),
 ::view-transition-group(dk-chrome-help),
 ::view-transition-new(dk-chrome-help-btn),
 ::view-transition-new(dk-chrome-help),
@@ -1577,6 +1610,7 @@ body.dk-overview .dk-notes {
 ::view-transition-old(dk-chrome-toast),
 ::view-transition-old(dk-chrome-fs),
 ::view-transition-old(dk-chrome-help-btn),
+::view-transition-old(dk-chrome-theme-btn),
 ::view-transition-old(dk-chrome-help),
 ::view-transition-old(dk-chrome-laser) {
   animation: none;

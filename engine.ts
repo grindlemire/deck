@@ -59,8 +59,10 @@
  * Media: a <video data-autoplay> plays from the start when its
  * slide becomes current; every video on other slides is paused.
  *
- * Theme: "t" flips data-theme on <html> between "light" and
- * "dark" and remembers the choice; the theme's CSS does the rest.
+ * Theme: "t" or the sun/moon corner button flips data-theme on <html>
+ * between "light" and "dark" and remembers the choice; the theme's CSS
+ * does the rest. Which one is showing comes from the theme's --paper, so
+ * a theme that starts light flips to dark on the first press.
  * ============================================================ */
 (() => {
   "use strict";
@@ -482,12 +484,83 @@
     if (saved === "light" || saved === "dark") root.dataset.theme = saved;
   } catch {}
 
+  // Which mode is showing: a theme's default can be either (house starts
+  // dark, paper light), so read the slide background, --paper, rather than
+  // data-theme. Kept on <html> as data-dk-mode for the button's icon.
+  const modeProbe = document.createElement("i");
+  modeProbe.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;background:var(--paper, #fff)";
+  const modeNow = (): "light" | "dark" => {
+    if (!modeProbe.isConnected) document.body.appendChild(modeProbe);
+    const m = getComputedStyle(modeProbe).backgroundColor.match(/[\d.]+/g);
+    if (!m || m.length < 3) return root.dataset.theme === "light" ? "light" : "dark";
+    const [r, g, b] = m.slice(0, 3).map(Number);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140 ? "light" : "dark";
+  };
+  let themeButton: HTMLButtonElement | null = null;
+  const syncMode = () => {
+    const mode = modeNow();
+    root.dataset.dkMode = mode;
+    if (themeButton) {
+      const label = `Switch to ${mode === "dark" ? "light" : "dark"} (t)`;
+      themeButton.title = label;
+      themeButton.setAttribute("aria-label", label);
+    }
+  };
+
+  // To dark, the dark deck grows as a circle out of the theme button over
+  // a snapshot of the light one; to light, the dark snapshot shrinks back
+  // into it. One symmetric curve both ways. --dk-reveal-x/y let engine.css
+  // hide the growing circle from its first frame, before the animation
+  // attaches. Without view transitions, or with reduced motion, it just
+  // switches.
+  let themeRun = null; // the latest switch; a quick second press skips the first
   const toggleTheme = () => {
-    const t = root.dataset.theme === "light" ? "dark" : "light";
-    root.dataset.theme = t;
-    try {
-      localStorage.setItem(THEME_KEY, t);
-    } catch {}
+    const t = modeNow() === "light" ? "dark" : "light";
+    const apply = () => {
+      root.dataset.theme = t;
+      try {
+        localStorage.setItem(THEME_KEY, t);
+      } catch {}
+      syncMode();
+    };
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => any };
+    if (!doc.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches || document.hidden) return apply();
+    const r = themeButton?.getBoundingClientRect();
+    const x = r && r.width ? r.left + r.width / 2 : innerWidth - 24;
+    const y = r && r.height ? r.top + r.height / 2 : 24;
+    const toDark = t === "dark";
+    root.style.setProperty("--dk-reveal-x", `${x}px`);
+    root.style.setProperty("--dk-reveal-y", `${y}px`);
+    root.classList.add("dk-theme-vt");
+    root.classList.toggle("dk-theme-unreveal", !toDark);
+    const vt = (themeRun = doc.startViewTransition(apply));
+    let circle = null;
+    vt.ready.then(
+      () => {
+        const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        const small = `circle(0px at ${x}px ${y}px)`;
+        const big = `circle(${end}px at ${x}px ${y}px)`;
+        circle = root.animate(
+          { clipPath: toDark ? [small, big] : [big, small] },
+          {
+            duration: 650,
+            easing: "cubic-bezier(.65,0,.35,1)",
+            fill: "forwards",
+            pseudoElement: toDark ? "::view-transition-new(root)" : "::view-transition-old(root)",
+          },
+        );
+      },
+      () => {},
+    );
+    // The circle holds its end until the transition is over, then goes:
+    // left on <html>, it would clip the next transition's snapshots too.
+    vt.finished.finally(() => {
+      circle?.cancel();
+      if (themeRun !== vt) return;
+      root.classList.remove("dk-theme-vt", "dk-theme-unreveal");
+      root.style.removeProperty("--dk-reveal-x");
+      root.style.removeProperty("--dk-reveal-y");
+    });
   };
 
   /* ---------- full screen ----------
@@ -571,6 +644,22 @@
   helpButton.title = "Keys (?)";
   helpButton.setAttribute("aria-label", "Show keys (?)");
   document.body.appendChild(helpButton);
+
+  // Light and dark: a sun that turns into a moon, beside "?".
+  themeButton = document.createElement("button");
+  themeButton.className = "dk-fs dk-theme-btn";
+  themeButton.type = "button";
+  themeButton.innerHTML =
+    '<svg class="dk-sunmoon" viewBox="0 0 24 24" aria-hidden="true"><mask id="dk-sm-mask"><rect x="0" y="0" width="24" height="24" fill="#fff"/><circle class="dk-sm-moon" cx="24" cy="10" r="6" fill="#000"/></mask><circle class="dk-sm-sun" cx="12" cy="12" r="6" mask="url(#dk-sm-mask)" fill="currentColor"/><g class="dk-sm-beams" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></g></svg>';
+  document.body.appendChild(themeButton);
+  themeButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleTheme();
+    themeButton.blur();
+  });
+  syncMode();
+  // The theme's fonts and styles can settle after start-up.
+  addEventListener("load", syncMode);
 
   const toggleHelp = () => {
     help.hidden = !help.hidden;

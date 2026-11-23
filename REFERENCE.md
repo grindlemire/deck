@@ -340,7 +340,7 @@ one). The build carries only the credits, never the digest's facts.
 | `k` | clicker test: lights each role (next, back, blank...) as its key arrives |
 | `v` | blow the slide's clip up to fill the slide (a demo's fallback); again to put it back |
 | `d` | check that every `data-demo` server answers |
-| `t` | toggle light / dark (`data-theme` on `<html>`, remembered) |
+| `t` | light / dark, remembered in this browser (also the sun/moon button by `?`; the new mode grows as a circle from it, or shrinks back into it) |
 | Esc | zoom out to the overview grid (each tile captioned with its number and headline); Esc again zooms back to where you were |
 | arrows (in the overview) | move the selection; Enter or Space zooms into it; click works too |
 | `0`-`9` then Enter | jump to that slide number (or click the counter bottom-right and type); jumps zoom out, show the target, and zoom in |

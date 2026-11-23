@@ -76,7 +76,9 @@ handy source of OFL woff2 files.
 ## Tokens
 
 Set on `:root` for the default mode and under `:root[data-theme="dark"]`
-(or `"light"`) for the other; `t` switches between them. The engine
+(or `"light"`) for the other; `t` and the sun/moon button switch between
+them. The engine tells which mode is showing from `--paper`, so a light
+`--paper` reads as light whichever mode the theme starts in. The engine
 draws everything through these:
 
 | Token | What it is |
