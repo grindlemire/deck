@@ -1750,26 +1750,11 @@ body.dk-presenter {
   display: none;
 }
 
-/* While live: the link phones open, and a button to copy it. */
+/* While live: a button that copies the link phones open (the link itself
+   is not shown; it is too long for the bar). */
 .dk-pv-share {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dk-pv-share-url {
-  min-width: 0;
-  max-width: 34ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #9aa3ad;
-  text-decoration: none;
-}
-
-.dk-pv-share-url:hover {
-  color: #e8eaed;
-  text-decoration: underline;
 }
 
 .dk-pv-share button {
