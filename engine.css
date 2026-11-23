@@ -1745,8 +1745,47 @@ body.dk-presenter {
 }
 
 .dk-pv-live-state[hidden],
-.dk-pv-link[hidden] {
+.dk-pv-link[hidden],
+.dk-pv-share[hidden] {
   display: none;
+}
+
+/* While live: the link phones open, and a button to copy it. */
+.dk-pv-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dk-pv-share-url {
+  min-width: 0;
+  max-width: 34ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #9aa3ad;
+  text-decoration: none;
+}
+
+.dk-pv-share-url:hover {
+  color: #e8eaed;
+  text-decoration: underline;
+}
+
+.dk-pv-share button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dk-pv-share button[data-state="done"] {
+  color: #3fb950;
+  border-color: #3fb950;
+}
+
+.dk-pv-share button[data-state="fail"] {
+  color: #f0b429;
+  border-color: #f0b429;
 }
 
 /* "Go live" asks for the key once, in a small dialog over the view. */
@@ -2030,7 +2069,8 @@ body.dk-presenter .dk-blank {
 }
 
 .dk-pv-bar > .dk-pv-link,
-.dk-pv-bar > .dk-pv-demo {
+.dk-pv-bar > .dk-pv-demo,
+.dk-pv-bar > .dk-pv-live {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
