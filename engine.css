@@ -558,6 +558,11 @@ body.dk-dev.dk-overview .dk-time-total {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
+/* Gone once a signed-out follower's talk has ended. */
+.dk-react-bar[hidden] {
+  display: none;
+}
+
 .dk-react-bar button {
   width: min(44px, 12vw);
   height: min(44px, 12vw);

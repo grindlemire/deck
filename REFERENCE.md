@@ -215,6 +215,13 @@ notes just work for the space's owners, and anyone else who presses Go
 live is told "Only the owner can lead this deck". Build such a deck with
 the gate's public path in the prefix, e.g. `"prefix": "/p/qmdjrq74/talks"`.
 
+When the gate lets signed-out people follow a talk, their phones get the
+live page with every slide left out, and the slides arrive from the
+server only as the speaker reaches them. They can look back over what
+has been shown, never ahead; before the talk there is no deck at all,
+and when it stops the slides are removed and the page says "The talk
+has ended". They never see the notes and cannot lead.
+
 `speaker` and `handle` go on a new talk's title slide (`new`; without a
 speaker, git's `user.name`).
 

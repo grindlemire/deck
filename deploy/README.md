@@ -124,6 +124,7 @@ root directory to `server`).
 |---|---|
 | `DECK_GATE_SECRET` | turns the mode on: the secret the gate signs requests with (its `GATE_IDENTITY_SECRET`), at least 32 bytes |
 | `DECK_OWNERS` | emails, comma-separated, that may lead the decks and read their notes |
+| `DECK_IP_HEADER` | the header holding the visitor's address (`X-Real-IP` on Railway), for signed-out followers' rate limits |
 | `AWS_ENDPOINT_URL` | the bucket's endpoint, an origin like `https://storage.example.com` |
 | `AWS_S3_BUCKET_NAME` | the bucket |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | its credentials |
@@ -147,6 +148,18 @@ routes as the talks site; their notes are `talks/<talk>/notes.json`,
 which is never served as a file. The owners lead and get the notes with
 no key; anyone else gets 403 on those. Pages the server writes (the
 follow page, redirects) use the gate's public path, `X-Gate-Prefix`.
+
+The gate can also let people who are not signed in follow a talk (its
+`Public` paths); it signs their requests with an empty `X-Gate-Email`.
+They may only open `talks/<talk>/live`, its `events`, its `slides` and
+post a `react`; anything else is 403. While the talk is not live, `live`
+is a page with no deck in it and the rest is refused. While it is live,
+`live` is the deck with every slide left out, and `slides?upto=<n>`
+returns the slides from the first to the furthest the speaker has shown
+since going live (forgotten when they stop). When the talk stops, their
+event stream says it ended and closes. Their reactions are limited per
+address: set `DECK_IP_HEADER` to the header the edge puts it in
+(`X-Real-IP` on Railway).
 
 Build a space's decks with the gate's path in the prefix and
 `"auth": "gate"`, so they lead without a key:

@@ -114,5 +114,8 @@ declare global {
     // events URL, and the emojis the audience can send.
     DECK_FOLLOW?: string;
     DECK_REACTIONS?: string[];
+    // Set on a signed-out follower's page (server/anon.go): where to
+    // fetch the slides the speaker has shown so far.
+    DECK_ANON?: string;
   }
 }

@@ -179,6 +179,7 @@ The engine announces moves on `document`:
 | --- | --- | --- |
 | `deck:slide` | `{ index, from, slide, dir }` | the current slide changed (`from` is -1 at the start, `dir` is `"fwd"` or `"back"`) |
 | `deck:phase` | `{ index, slide, phase, phases }` | the current slide's build step changed, or a slide was arrived on |
+| `deck:insert` | `{ index, slide }` | a signed-out follower's deck received a slide it started without (its content was empty until now) |
 
 ```ts
 window.deck.on("phase", ({ slide, phase, phases }) => {

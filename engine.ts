@@ -111,22 +111,29 @@
 
   const creditOf = (id) => credits[id].credit || credits[id].title;
 
-  const cited = [];
-  slides.forEach((slide) => {
+  const addSourceLine = (slide) => {
     const ids = othersCitedBy(slide);
-    ids.forEach((id) => cited.includes(id) || cited.push(id));
     if (!ids.length || slide.querySelector(".src-line")) return;
     const line = document.createElement("p");
     line.className = "src-line";
     line.textContent = `Source: ${ids.map(creditOf).join("; ")}`;
     slide.appendChild(line);
-  });
+  };
+  slides.forEach(addSourceLine);
 
-  slides
-    .filter((s) => s.classList.contains("credits-slide") && !s.querySelector(".credits"))
-    .forEach((slide) => {
+  // The credits list: every source cited, in the order of first use. A
+  // signed-out follower's deck fills in as slides arrive, so it can run
+  // again; it only replaces a list it made itself.
+  const fillCredits = () => {
+    const cited = [];
+    slides.forEach((slide) => othersCitedBy(slide).forEach((id) => cited.includes(id) || cited.push(id)));
+    slides.filter((s) => s.classList.contains("credits-slide")).forEach((slide) => {
+      const made = slide.querySelector(".credits[data-dk-credits]");
+      if (slide.querySelector(".credits") && !made) return;
+      made?.remove();
       const list = document.createElement("ol");
       list.className = "credits";
+      list.dataset.dkCredits = "";
       for (const id of cited) {
         const li = document.createElement("li");
         li.textContent = creditOf(id);
@@ -141,6 +148,8 @@
       }
       (slide.querySelector("[data-credits]") || slide).appendChild(list);
     });
+  };
+  fillCredits();
 
   // A short name for a slide: its headline, or failing that its big
   // line (walls, dividers, anchors), or its footer. Line breaks count
@@ -156,9 +165,10 @@
   };
 
   // The overview captions each tile with its number and name.
-  slides.forEach((slide, i) => {
+  const labelTile = (slide, i) => {
     tileOf(slide).dataset.label = `${i + 1} \u00b7 ${titleOf(slide)}`;
-  });
+  };
+  slides.forEach(labelTile);
 
   let current = -1;
   let notesOpen = false;
@@ -166,7 +176,9 @@
 
   // "?presenter" in the URL: this window is the presenter view (see
   // "presenter window" below), driving the audience window that opened it.
-  const presenterMode = new URLSearchParams(location.search).has("presenter");
+  // Never for a signed-out follower's deck (window.DECK_ANON), which has
+  // no slides of its own to present.
+  const presenterMode = new URLSearchParams(location.search).has("presenter") && !window.DECK_ANON;
 
   // A copy on this machine (file:// or a local server), as opposed to the
   // hosted deck that anyone can open.
@@ -232,7 +244,7 @@
   /* ---------- builds: data-build elements become extra phases ---------- */
 
   const buildsOf = new Map();
-  slides.forEach((slide) => {
+  const prepareBuilds = (slide: HTMLElement) => {
     if (slide.dataset.phases) return;
     const els = Array.from(slide.querySelectorAll<HTMLElement>("[data-build]"));
     if (els.length === 0) return;
@@ -244,7 +256,8 @@
     });
     buildsOf.set(slide, steps);
     slide.dataset.phases = String(Math.max(...steps.map((s) => s.step)) + 1);
-  });
+  };
+  slides.forEach(prepareBuilds);
 
   const applyBuilds = (slide) => {
     const steps = buildsOf.get(slide);
@@ -2410,6 +2423,44 @@
   // A reload of a live audience window stays live.
   if (read(sessionStorage, LIVE_KEY)) setLive(true);
 
+  /* A signed-out follower's deck (window.DECK_ANON) arrives empty: one
+   * placeholder per slide, and the slides themselves only as far as the
+   * speaker has gone, from <talk>/slides. hydrate fills a placeholder
+   * in place (same element, so its tile, listeners and the theme's
+   * attributes stay) and sets the slide up as start-up does: source
+   * line, builds, label. When the talk ends, wipe empties them again. */
+  const anonUrl = following ? window.DECK_ANON : "";
+  const hydrate = (i, html) => {
+    const slide = slides[i];
+    const t = document.createElement("template");
+    t.innerHTML = html;
+    const from = t.content.firstElementChild;
+    if (!slide || !from) return;
+    for (const a of Array.from(from.attributes)) {
+      if (a.name === "class") slide.classList.add(...a.value.split(/\s+/).filter(Boolean));
+      else if (a.name === "style") slide.style.cssText += `;${a.value}`;
+      else slide.setAttribute(a.name, a.value);
+    }
+    slide.replaceChildren(...Array.from(from.childNodes));
+    addSourceLine(slide);
+    prepareBuilds(slide);
+    _setPhase(slide, 1);
+    applyBuilds(slide);
+    labelTile(slide, i);
+    document.dispatchEvent(new CustomEvent("deck:insert", { detail: { index: i, slide } }));
+  };
+  const wipe = () => {
+    clearInk(false);
+    slides.forEach((slide) => {
+      const now = slide.classList.contains("current");
+      for (const a of Array.from(slide.attributes)) slide.removeAttribute(a.name);
+      slide.className = now ? "slide current" : "slide";
+      slide.replaceChildren();
+      buildsOf.delete(slide);
+      tileOf(slide).dataset.label = "";
+    });
+  };
+
   // Following: take the server's moves until the viewer moves themselves.
   if (followUrl) {
     let live = true;
@@ -2428,7 +2479,51 @@
     const follow = (s) => {
       if (!s || !Number.isInteger(s.slide)) return;
       if (overview) return;
+      if (anonUrl && s.slide > have) return; // not here yet: ensure brings it
       apply({ slide: Math.min(s.slide, slides.length - 1), phase: s.phase, clip: !!s.clip });
+    };
+
+    // Signed out: the slides so far, fetched as the speaker reaches them.
+    let have = -1; // the last slide this page has
+    let ended = false;
+    let fetching = null;
+    const ensure = async (n) => {
+      while (!ended && n > have) {
+        if (!fetching) {
+          fetching = (async () => {
+            const url = new URL(anonUrl, location.href);
+            url.searchParams.set("upto", String(n));
+            const r = await fetch(url, { cache: "no-store" });
+            if (!r.ok) throw new Error(`slides: ${r.status}`);
+            const got = await r.json();
+            Object.assign(credits, got.sources || {});
+            const list = Array.isArray(got.slides) ? got.slides : [];
+            for (let i = have + 1; i < list.length && i < slides.length; i++) hydrate(i, list[i]);
+            const before = have;
+            have = Math.max(have, Math.min(list.length, slides.length) - 1);
+            if (have > before) fillCredits();
+            if (have < n) throw new Error("slides: not that far yet");
+          })().finally(() => (fetching = null));
+        }
+        try {
+          await fetching;
+        } catch {
+          return false;
+        }
+      }
+      return !ended;
+    };
+    const endTalk = (text) => {
+      if (ended) return;
+      ended = true;
+      es.close();
+      live = false;
+      laserPoint(null, null);
+      wipe();
+      back.hidden = true;
+      bar.hidden = true;
+      waiting.textContent = text;
+      waiting.hidden = false;
     };
     const showBack = () => {
       back.hidden = live || !latest?.live;
@@ -2466,6 +2561,12 @@
     // moving to the live slide (or past it) rejoins it. Before the talk
     // they stay at the start; once it stops, the whole deck is theirs.
     followGate = (slide, phase) => {
+      // Signed out: nothing to move to once the talk has ended, and
+      // nothing past the slides that have arrived.
+      if (anonUrl && (ended || !latest?.live || slide > have)) {
+        if (!ended && latest?.live && slide > have) rejoin();
+        return true;
+      }
       if (!latest) {
         flash("The talk hasn't started yet", 2000);
         return true;
@@ -2490,9 +2591,23 @@
       // Going live brings everyone along, wherever they had wandered.
       if (s.live && !latest?.live) live = true;
       latest = s;
+      if (ended) return;
       waiting.hidden = true;
+      if (anonUrl && s.live && s.slide > have) {
+        ensure(s.slide).then(() => {
+          if (live) follow(latest);
+          else showBack();
+        });
+        return;
+      }
       if (live) follow(latest);
       else showBack();
+    });
+    // The server ends a signed-out follower's stream when the talk stops;
+    // a stream it refuses (the talk is not live) closes for good.
+    es.addEventListener("ended", () => endTalk("The talk has ended"));
+    es.addEventListener("error", () => {
+      if (anonUrl && es.readyState === EventSource.CLOSED) endTalk(latest ? "The talk has ended" : "This talk isn't live right now");
     });
     es.addEventListener("fx", (e) => {
       let m;
