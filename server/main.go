@@ -23,6 +23,14 @@
 // visitor's address, for the rate limits. Followers only
 // ever learn the slide, the laser and the ink. All live state is in
 // memory, so run one instance.
+//
+// Spaces mode, when DECK_GATE_SECRET is set: private sites behind
+// alethi.dev's gate, read from a bucket (spaces.go). Each request's
+// space and email come from the gate's signed X-Gate-* headers (gate.go);
+// the owners in DECK_OWNERS lead and read notes without a key. The same
+// routes, relative to the space's root:
+//
+//	DECK_GATE_SECRET=... DECK_OWNERS=you@example.com go run ./deck/server [-spaces-dir dir]
 package main
 
 import (
@@ -33,10 +41,13 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -57,7 +68,25 @@ func run() error {
 	addr := flag.String("addr", ":"+port, "listen address")
 	ipHeader := flag.String("ip-header", os.Getenv("DECK_IP_HEADER"),
 		"the header a proxy in front puts the visitor's address in, e.g. X-Real-IP (default: trust none, use the peer)")
+	spacesDir := flag.String("spaces-dir", "",
+		"spaces mode: read the spaces from this directory, laid out like the bucket (spaces/<space>/_manifest.json), instead of the bucket")
+	manifestDir := flag.String("write-manifest", "",
+		"write <dir>/_manifest.json for the files in <dir> (a space for -spaces-dir), and exit")
 	flag.Parse()
+
+	if *manifestDir != "" {
+		return writeManifest(*manifestDir)
+	}
+	if secret := os.Getenv("DECK_GATE_SECRET"); secret != "" {
+		sp, err := spacesFromEnv(secret, *spacesDir)
+		if err != nil {
+			return err
+		}
+		return serve(*addr, sp, sp.live, func() { announceSpaces(sp, *addr) })
+	}
+	if *spacesDir != "" {
+		return errors.New("-spaces-dir is spaces mode, which needs DECK_GATE_SECRET")
+	}
 
 	st, err := loadSite(*siteDir)
 	if err != nil {
@@ -74,11 +103,42 @@ func run() error {
 	if err != nil {
 		return err
 	}
-
 	mux := http.NewServeMux()
 	lv.register(mux, st.prefix)
 	mux.Handle("/", st)
+	return serve(*addr, mux, lv, func() { announce(st, *addr, key, madeUp) })
+}
 
+// spacesFromEnv sets up spaces mode: the gate's secret, the owners, and
+// the bucket from Railway's variables (or dir, when set).
+func spacesFromEnv(secret, dir string) (*spaces, error) {
+	if len(secret) < minGateSecret {
+		return nil, fmt.Errorf("DECK_GATE_SECRET is %d bytes; want at least %d, the same as the gate's GATE_IDENTITY_SECRET", len(secret), minGateSecret)
+	}
+	var st store
+	if dir != "" {
+		d, err := newDirStore(dir)
+		if err != nil {
+			return nil, err
+		}
+		st = d
+	} else {
+		c, err := s3FromEnv()
+		if err != nil {
+			return nil, err
+		}
+		if c == nil {
+			return nil, fmt.Errorf("spaces mode reads the bucket from %s, %s, %s and %s (or a directory with -spaces-dir)",
+				envEndpoint, envBucket, envAccessKey, envSecretKey)
+		}
+		st = c
+	}
+	return newSpaces([]byte(secret), parseOwners(os.Getenv("DECK_OWNERS")), st), nil
+}
+
+// serve runs h on addr, with lv's reactions, until the process is told
+// to stop. hello says what is being served, once it is listening.
+func serve(addr string, h http.Handler, lv *live, hello func()) error {
 	// Cancelled on shutdown, so the open event streams end and Shutdown
 	// does not wait on them.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -87,15 +147,15 @@ func run() error {
 
 	// No read or write timeout: the event streams stay open for the talk.
 	server := &http.Server{
-		Addr:              *addr,
-		Handler:           mux,
+		Addr:              addr,
+		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- server.ListenAndServe() }()
-	announce(st, *addr, key, madeUp)
+	hello()
 
 	select {
 	case err := <-errc:
@@ -108,6 +168,19 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+// announceSpaces says where the spaces come from and who leads.
+func announceSpaces(sp *spaces, addr string) {
+	fmt.Printf("deck server on %s, spaces mode: the spaces in the %s, behind the gate\n", addr, sp.store)
+	if len(sp.owners) == 0 {
+		fmt.Println("  owners: none (set DECK_OWNERS), so nobody can lead or read notes")
+	} else {
+		fmt.Printf("  owners: %s\n", strings.Join(slices.Sorted(maps.Keys(sp.owners)), ", "))
+	}
+	if os.Getenv("DECK_LEAD_KEY") != "" {
+		fmt.Println("  DECK_LEAD_KEY is ignored here: the owners lead without a key")
+	}
 }
 
 // announce prints what to open: the audience URL for each talk on this

@@ -190,16 +190,23 @@ type stream struct {
 
 func listen(t *testing.T, url string) *stream {
 	t.Helper()
-	res, err := http.Get(url)
+	req, _ := http.NewRequest("GET", url, nil)
+	return listenTo(t, req)
+}
+
+func listenTo(t *testing.T, req *http.Request) *stream {
+	t.Helper()
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { res.Body.Close() })
 	if ct := res.Header.Get("Content-Type"); ct != "text/event-stream" {
-		t.Fatalf("GET %s: content type %q", url, ct)
+		t.Fatalf("GET %s: content type %q", req.URL, ct)
 	}
 	s := &stream{t: t, events: make(chan [2]string, 16)}
 	go func() {
+		defer close(s.events) // the stream ended
 		sc := bufio.NewScanner(res.Body)
 		sc.Buffer(nil, 1<<20)
 		var name, data string
