@@ -70,6 +70,8 @@ func run() error {
 		"the header a proxy in front puts the visitor's address in, e.g. X-Real-IP (default: trust none, use the peer)")
 	spacesDir := flag.String("spaces-dir", "",
 		"spaces mode: read the spaces from this directory, laid out like the bucket (spaces/<space>/_manifest.json), instead of the bucket")
+	spacesOnly := flag.Bool("spaces", false,
+		"spaces mode or nothing: refuse to start without DECK_GATE_SECRET (server/Dockerfile sets it)")
 	manifestDir := flag.String("write-manifest", "",
 		"write <dir>/_manifest.json for the files in <dir> (a space for -spaces-dir), and exit")
 	flag.Parse()
@@ -84,8 +86,8 @@ func run() error {
 		}
 		return serve(*addr, sp, sp.live, func() { announceSpaces(sp, *addr) })
 	}
-	if *spacesDir != "" {
-		return errors.New("-spaces-dir is spaces mode, which needs DECK_GATE_SECRET")
+	if *spacesDir != "" || *spacesOnly {
+		return errors.New("spaces mode needs DECK_GATE_SECRET, the secret alethi.dev's gate signs requests with")
 	}
 
 	st, err := loadSite(*siteDir)
