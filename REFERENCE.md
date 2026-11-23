@@ -208,6 +208,13 @@ laptop (`serve` redraws it for the network it is on).
 it and notes it in `site/deck-site.json`, which `deck/server` reads,
 so the two always agree. The rest of this file says `/talks`.
 
+`"auth": "gate"` is for decks in a private space, served by `deck/server`'s
+spaces mode behind alethi.dev's gate (see `deploy/README.md`). The gate
+says who is asking, so the deck never asks for a key: Go live and the
+notes just work for the space's owners, and anyone else who presses Go
+live is told "Only the owner can lead this deck". Build such a deck with
+the gate's public path in the prefix, e.g. `"prefix": "/p/qmdjrq74/talks"`.
+
 `speaker` and `handle` go on a new talk's title slide (`new`; without a
 speaker, git's `user.name`).
 

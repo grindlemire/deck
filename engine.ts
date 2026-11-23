@@ -1645,7 +1645,10 @@
       if (notesState === "locked") loadPrivateNotes();
     });
     $(".dk-pv-notes").addEventListener("click", (e) => {
-      if (e.target.closest('[data-act="notes-key"]')) askKey("Show my notes", () => {});
+      if (!e.target.closest('[data-act="notes-key"]')) return;
+      // Behind the gate there is no key: the fetch failed, so try again.
+      if (gateAuth) loadPrivateNotes();
+      else askKey("Show my notes", () => {});
     });
     onNotesLoaded = () => {
       planCache = null;
@@ -1757,7 +1760,9 @@
           : `Live, ${r.followers} following`
         : r?.error === "key"
           ? "Key rejected"
-          : "";
+          : r?.error === "owner"
+            ? OWNER_ONLY
+            : "";
       liveState.hidden = !liveState.textContent;
       liveState.dataset.state = on && r.followers != null ? "on" : "warn";
 
@@ -1834,7 +1839,9 @@
           ? src.innerHTML
           : notesState === "locked"
             ? '<p><em>Your notes are private on this site.</em></p><p><button type="button" data-act="notes-key">Show my notes</button></p>'
-            : "<p><em>No notes for this slide.</em></p>";
+            : notesState === "owner"
+              ? "<p><em>Only the owner can see the notes for this deck.</em></p>"
+              : "<p><em>No notes for this slide.</em></p>";
         notes.scrollTop = 0;
       }
       // The timer starts on the first move away from where you opened.
@@ -2139,8 +2146,17 @@
       return {};
     }
   })();
+  // "auth": "gate": the deck is in a private space behind alethi.dev's
+  // gate, which tells the server who is asking. The owner leads and gets
+  // the notes with no key, and nobody is asked for one.
+  const gateAuth = config.auth === "gate";
   const LEAD_KEY = "deck:lead-key";
   const LIVE_KEY = "deck:live"; // per window, so a reload stays live
+  const leadHeaders = (): Record<string, string> =>
+    gateAuth
+      ? { "content-type": "application/json" }
+      : { authorization: `Bearer ${read(localStorage, LEAD_KEY)}`, "content-type": "application/json" };
+  const OWNER_ONLY = "Only the owner can lead this deck";
   const read = (store, k) => {
     try {
       return store.getItem(k);
@@ -2194,10 +2210,15 @@
     try {
       const r = await fetch(leadAt("state"), {
         method: "POST",
-        headers: { authorization: `Bearer ${read(localStorage, LEAD_KEY)}`, "content-type": "application/json" },
+        headers: leadHeaders(),
         body: JSON.stringify({ slide: current, phase: phaseOf(slides[current]), live: true, clip: !!clipFull, events }),
       });
-      if (r.status === 403) {
+      if (r.status === 403 && gateAuth) {
+        // Signed in, but not as the owner: there is no key to ask for.
+        setLive(false);
+        liveError = "owner";
+        flash(OWNER_ONLY, 3000);
+      } else if (r.status === 403) {
         // Forget it, so the next "Go live" asks for it again.
         write(localStorage, LEAD_KEY, null);
         setLive(false);
@@ -2217,14 +2238,15 @@
   // Now and then too, so a restarted server catches up and the count stays fresh.
   setInterval(lead, 10000);
 
-  // Start or stop leading (audience window). Needs a saved key to start.
+  // Start or stop leading (audience window). Needs a saved key to start,
+  // unless the gate vouches for the speaker.
   function setLive(on) {
-    if (on && !(canLead && read(localStorage, LEAD_KEY))) return;
+    if (on && !(canLead && (gateAuth || read(localStorage, LEAD_KEY)))) return;
     // Stopping tells the server, so phones may roam the whole deck.
     if (isLive && !on)
       fetch(leadAt("state"), {
         method: "POST",
-        headers: { authorization: `Bearer ${read(localStorage, LEAD_KEY)}`, "content-type": "application/json" },
+        headers: leadHeaders(),
         body: JSON.stringify({ slide: current, phase: phaseOf(slides[current]), live: false }),
       }).catch(() => {});
     isLive = on;
@@ -2276,11 +2298,11 @@
       if (!audienceHere()) return flash("No slides window for this deck is open in this browser. Open the deck, then press p there", 5000);
       if (!relay.can) return flash("This deck has no follow-along address", 3000);
       if (relay.live) return post({ type: "go-live", on: false });
-      if (!read(localStorage, LEAD_KEY)) return askKey("Go live", () => post({ type: "go-live", on: true }));
+      if (!gateAuth && !read(localStorage, LEAD_KEY)) return askKey("Go live", () => post({ type: "go-live", on: true }));
       return post({ type: "go-live", on: true });
     }
     if (!canLead) return flash("This deck has no follow-along address");
-    if (!isLive && !read(localStorage, LEAD_KEY)) return flash("Go live from the presenter window (p) the first time, to enter the key", 2600);
+    if (!isLive && !gateAuth && !read(localStorage, LEAD_KEY)) return flash("Go live from the presenter window (p) the first time, to enter the key", 2600);
     setLive(!isLive);
     flash(isLive ? "Live: phones follow this deck" : "Follow-along stopped");
   }
@@ -2343,32 +2365,44 @@
   }
 
   // The presenter window on the hosted deck: fetch the speaker notes with
-  // the key and put them back into the slides, so the notes, the pace and
-  // the strip work as they do from a local copy (which keeps its notes).
+  // the key (behind the gate, as the owner) and put them back into the
+  // slides, so the notes, the pace and the strip work as they do from a
+  // local copy (which keeps its notes).
   async function loadPrivateNotes() {
     if (!presenterMode || !liveUrl || document.querySelector(".slide .notes")) return;
     notesState = "locked";
     const key = read(localStorage, LEAD_KEY);
-    if (key) {
+    if (gateAuth) {
+      try {
+        const r = await fetch(leadAt("notes"), { cache: "no-store" });
+        if (r.status === 403) notesState = "owner";
+        else if (r.ok) {
+          putBackNotes(await r.json());
+          notesState = "";
+        }
+      } catch {}
+    } else if (key) {
       try {
         const r = await fetch(leadAt("notes"), { headers: { authorization: `Bearer ${key}` }, cache: "no-store" });
         if (r.status === 403) {
           write(localStorage, LEAD_KEY, null);
           flash("That key was rejected", 3000);
         } else if (r.ok) {
-          const notes = await r.json();
-          slides.forEach((slide, i) => {
-            if (typeof notes[i] !== "string" || !notes[i]) return;
-            const aside = document.createElement("aside");
-            aside.className = "notes";
-            aside.innerHTML = notes[i];
-            slide.appendChild(aside);
-          });
+          putBackNotes(await r.json());
           notesState = "";
         }
       } catch {}
     }
     onNotesLoaded();
+  }
+  function putBackNotes(notes) {
+    slides.forEach((slide, i) => {
+      if (typeof notes[i] !== "string" || !notes[i]) return;
+      const aside = document.createElement("aside");
+      aside.className = "notes";
+      aside.innerHTML = notes[i];
+      slide.appendChild(aside);
+    });
   }
   // After start-up, once the presenter view is built.
   if (presenterMode) setTimeout(loadPrivateNotes, 0);
