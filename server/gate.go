@@ -34,8 +34,11 @@ const (
 type identity struct {
 	space  string // the gate's ID, e.g. nqs-review
 	prefix string // the gate's public path, e.g. /p/qmdjrq74 (no trailing slash)
-	email  string // who signed in, lowercase
+	email  string // who signed in, lowercase; empty for a signed-out follower
 }
+
+// anon is a signed-out follower: the gate signed the request with no email.
+func (id identity) anon() bool { return id.email == "" }
 
 // spaceRE is a space name that is safe as one path segment in the bucket.
 var spaceRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
@@ -87,9 +90,8 @@ func verifyGate(secret []byte, r *http.Request, now time.Time) (identity, error)
 	if !validPrefix(prefix) {
 		return identity{}, fmt.Errorf("%w: prefix %q is not a path like /p/x", errGate, prefix)
 	}
-	if email == "" {
-		return identity{}, fmt.Errorf("%w: no email", errGate)
-	}
+	// An empty email is still signed: the gate let someone who is not
+	// signed in through to a public path (a signed-out follower).
 	return identity{space: space, prefix: prefix, email: strings.ToLower(email)}, nil
 }
 

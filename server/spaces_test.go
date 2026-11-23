@@ -459,13 +459,13 @@ func TestSpacesFromTheBucket(t *testing.T) {
 }
 
 func TestSpacesNeedALongSecret(t *testing.T) {
-	if _, err := spacesFromEnv("short", t.TempDir()); err == nil || !strings.Contains(err.Error(), "DECK_GATE_SECRET") {
+	if _, err := spacesFromEnv("short", t.TempDir(), ""); err == nil || !strings.Contains(err.Error(), "DECK_GATE_SECRET") {
 		t.Errorf("short secret: err = %v", err)
 	}
 	for _, k := range []string{envEndpoint, envBucket, envAccessKey, envSecretKey} {
 		t.Setenv(k, "")
 	}
-	if _, err := spacesFromEnv(testSecret, ""); err == nil || !strings.Contains(err.Error(), envBucket) {
+	if _, err := spacesFromEnv(testSecret, "", ""); err == nil || !strings.Contains(err.Error(), envBucket) {
 		t.Errorf("no bucket and no dir: err = %v", err)
 	}
 }

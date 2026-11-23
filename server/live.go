@@ -65,6 +65,7 @@ type talk struct {
 	room *room  // nil: no such talk
 	site *site  // the talk's deck and notes, and the 404 page; nil: none
 	lead bool   // may lead the talk and read its notes
+	anon bool   // a signed-out follower: only the live talk, as far as it has gone
 	who  string // whom the rate limits and stream caps count
 }
 
@@ -76,12 +77,20 @@ type room struct {
 	pageDeck *file  // built from this deck
 	pageAt   string // for the talks at this public path
 
+	// For signed-out followers (anon.go): the deck taken apart, and the
+	// shell made from it for the talks at shellAt.
+	partsDeck *file
+	partsOf   *deckParts
+	shell     *file
+	shellAt   string
+
 	mu        sync.Mutex
 	led       bool      // the lead has posted since the server started
 	heard     time.Time // the lead's last post
 	state     leadState
 	ink       []fx // ink since the slide began or was last cleared
 	listeners map[*listener]struct{}
+	maxShown  int            // the furthest slide shown since the talk went live; -1 when it is not
 	pending   map[string]int // reactions since the last flush
 	pendingN  int
 }
@@ -89,6 +98,7 @@ type room struct {
 type listener struct {
 	ch   chan []byte
 	lead bool
+	anon bool // let go, after an "ended" event, when the talk stops
 }
 
 // leadState is where the speaker is. Live is false once they stop, which
@@ -187,7 +197,7 @@ func (lv *live) room(id string) *room {
 	defer lv.mu.Unlock()
 	rm := lv.rooms[id]
 	if rm == nil {
-		rm = &room{listeners: map[*listener]struct{}{}, pending: map[string]int{}}
+		rm = &room{listeners: map[*listener]struct{}{}, pending: map[string]int{}, maxShown: -1}
 		lv.rooms[id] = rm
 	}
 	return rm
@@ -266,6 +276,7 @@ func (lv *live) register(mux *http.ServeMux, prefix string) {
 	}
 	mux.HandleFunc(at("POST", "react"), lv.serveReact)
 	mux.HandleFunc(at("GET", "notes"), lv.serveNotes)
+	mux.HandleFunc(at("GET", "slides"), lv.serveSlides)
 }
 
 // run sends out the reactions in batches until ctx ends.
@@ -316,6 +327,10 @@ func (lv *live) servePage(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.NotFound(w, r)
 		}
+		return
+	}
+	if t.anon {
+		lv.serveAnonPage(w, r, t, deck)
 		return
 	}
 	page, err := t.room.followPage(publicBase(r.Context())+t.site.prefix, t.name, deck)
@@ -404,7 +419,11 @@ func (lv *live) serveEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Set("X-Accel-Buffering", "no")
 	rm := t.room
-	l := rm.join(r.URL.Query().Has("lead"))
+	l := rm.join(r.URL.Query().Has("lead") && !t.anon, t.anon)
+	if l == nil {
+		http.Error(w, "the talk is not live", http.StatusForbidden)
+		return
+	}
 	defer rm.leave(l)
 
 	rc := http.NewResponseController(w)
@@ -447,6 +466,10 @@ func (lv *live) serveReact(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "want {e, p} with one of the offered emojis", http.StatusBadRequest)
 		return
 	}
+	if _, live := t.room.shown(); t.anon && !live {
+		http.Error(w, "the talk is not live", http.StatusForbidden)
+		return
+	}
 	now := time.Now()
 	if (in.P != "" && !lv.limit.allow("p:"+in.P, now, reactRate, reactBurst)) || !lv.limit.allow("a:"+t.who, now, addrRate, addrBurst) {
 		http.Error(w, "slow down", http.StatusTooManyRequests)
@@ -484,11 +507,15 @@ func sse(event string, v any) []byte {
 }
 
 // join adds a listener, queued up with where the talk is and the ink
-// already on the slide.
-func (rm *room) join(lead bool) *listener {
-	l := &listener{ch: make(chan []byte, listenerQueue), lead: lead}
+// already on the slide. A signed-out follower (anon) joins only a live
+// talk: nil otherwise.
+func (rm *room) join(lead, anon bool) *listener {
+	l := &listener{ch: make(chan []byte, listenerQueue), lead: lead, anon: anon}
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
+	if anon && !rm.liveLocked() {
+		return nil
+	}
 	if rm.led {
 		l.ch <- sse("state", rm.state)
 		if len(rm.ink) > 0 {
@@ -547,6 +574,34 @@ func (rm *room) endIfSilent(now time.Time, after time.Duration) {
 	rm.state.Live = false
 	rm.state.Clip = false
 	rm.broadcastLocked(sse("state", rm.state))
+	rm.endedLocked()
+}
+
+func (rm *room) liveLocked() bool { return rm.led && rm.state.Live }
+
+// shown is how far the speaker has gone in this live session, and
+// whether the talk is live.
+func (rm *room) shown() (int, bool) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	return rm.maxShown, rm.liveLocked()
+}
+
+// endedLocked closes the live session: the slides shown are forgotten,
+// and signed-out followers hear that the talk ended and are let go.
+func (rm *room) endedLocked() {
+	rm.maxShown = -1
+	ended := sse("ended", struct{}{})
+	for l := range rm.listeners {
+		if !l.anon {
+			continue
+		}
+		select {
+		case l.ch <- ended:
+		default:
+		}
+		rm.dropLocked(l)
+	}
 }
 
 func (rm *room) lead(s leadState, events []fx) int {
@@ -556,10 +611,16 @@ func (rm *room) lead(s leadState, events []fx) int {
 	if !rm.led || s.Slide != rm.state.Slide {
 		rm.ink = nil
 	}
+	if s.Live {
+		rm.maxShown = max(rm.maxShown, s.Slide)
+	}
 	if !rm.led || s != rm.state {
 		rm.led = true
 		rm.state = s
 		rm.broadcastLocked(sse("state", s))
+	}
+	if !s.Live {
+		rm.endedLocked()
 	}
 	if len(events) > 0 {
 		for _, e := range events {

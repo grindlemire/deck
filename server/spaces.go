@@ -106,12 +106,13 @@ func parseManifest(space string, b []byte) (*manifest, error) {
 
 // spaces serves every space behind the gate.
 type spaces struct {
-	secret []byte
-	owners map[string]bool
-	store  store
-	live   *live
-	mux    *http.ServeMux // a space's routes, after the gate check
-	now    func() time.Time
+	secret   []byte
+	owners   map[string]bool
+	ipHeader string // where the edge puts the visitor's address, for signed-out followers' limits
+	store    store
+	live     *live
+	mux      *http.ServeMux // a space's routes, after the gate check
+	now      func() time.Time
 
 	mu     sync.Mutex
 	byName map[string]*space
@@ -192,6 +193,10 @@ func (sp *spaces) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	if id.anon() && !anonRoute(r) {
+		http.Error(w, "sign in to see this", http.StatusForbidden)
+		return
+	}
 	// Go's mux would redirect an unclean path to a clean one at this
 	// server's root, outside the gate's prefix; nothing is there anyway.
 	if p := r.URL.Path; path.Clean(p) != strings.TrimSuffix(p, "/") && p != "/" {
@@ -213,16 +218,39 @@ func (sp *spaces) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sp.mux.ServeHTTP(w, r.WithContext(ctx))
 }
 
+// anonRoute is what a signed-out follower may ask for: a talk's follow
+// page, its events, the slides shown so far, and a reaction.
+func anonRoute(r *http.Request) bool {
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) != 4 || parts[0] != "" || parts[1] != "talks" || parts[2] == "" {
+		return false
+	}
+	switch parts[3] {
+	case "live":
+		return r.Method == http.MethodGet || r.Method == http.MethodHead
+	case "events", "slides":
+		return r.Method == http.MethodGet
+	case "react":
+		return r.Method == http.MethodPost
+	}
+	return false
+}
+
 // find is live's view of a request: the talk in the signed space, led
-// by the owners, rate limited by the signed email.
+// by the owners, rate limited by the signed email (by address for a
+// signed-out follower).
 func (sp *spaces) find(r *http.Request) talk {
 	req := requestOf(r)
 	name := r.PathValue("talk")
 	t := talk{
 		name: name,
 		site: req.v.site,
-		lead: sp.owners[req.id.email],
+		lead: !req.id.anon() && sp.owners[req.id.email],
+		anon: req.id.anon(),
 		who:  "e:" + req.id.email,
+	}
+	if t.anon {
+		t.who = "ip:" + clientIP(r, sp.ipHeader)
 	}
 	if req.v.talks[name] {
 		t.room = sp.live.room(roomID(req.id.space, name))

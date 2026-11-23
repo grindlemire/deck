@@ -80,7 +80,7 @@ func run() error {
 		return writeManifest(*manifestDir)
 	}
 	if secret := os.Getenv("DECK_GATE_SECRET"); secret != "" {
-		sp, err := spacesFromEnv(secret, *spacesDir)
+		sp, err := spacesFromEnv(secret, *spacesDir, *ipHeader)
 		if err != nil {
 			return err
 		}
@@ -112,8 +112,10 @@ func run() error {
 }
 
 // spacesFromEnv sets up spaces mode: the gate's secret, the owners, and
-// the bucket from Railway's variables (or dir, when set).
-func spacesFromEnv(secret, dir string) (*spaces, error) {
+// the bucket from Railway's variables (or dir, when set). ipHeader is
+// where the edge puts the visitor's address, which signed-out followers'
+// rate limits key on.
+func spacesFromEnv(secret, dir, ipHeader string) (*spaces, error) {
 	if len(secret) < minGateSecret {
 		return nil, fmt.Errorf("DECK_GATE_SECRET is %d bytes; want at least %d, the same as the gate's GATE_IDENTITY_SECRET", len(secret), minGateSecret)
 	}
@@ -135,7 +137,9 @@ func spacesFromEnv(secret, dir string) (*spaces, error) {
 		}
 		st = c
 	}
-	return newSpaces([]byte(secret), parseOwners(os.Getenv("DECK_OWNERS")), st), nil
+	sp := newSpaces([]byte(secret), parseOwners(os.Getenv("DECK_OWNERS")), st)
+	sp.ipHeader = ipHeader
+	return sp, nil
 }
 
 // serve runs h on addr, with lv's reactions, until the process is told
@@ -182,6 +186,11 @@ func announceSpaces(sp *spaces, addr string) {
 	}
 	if os.Getenv("DECK_LEAD_KEY") != "" {
 		fmt.Println("  DECK_LEAD_KEY is ignored here: the owners lead without a key")
+	}
+	if sp.ipHeader == "" {
+		fmt.Println("  signed-out followers: rate limited by the peer's address (set DECK_IP_HEADER behind a proxy)")
+	} else {
+		fmt.Printf("  signed-out followers: rate limited by the address in %s\n", sp.ipHeader)
 	}
 }
 
