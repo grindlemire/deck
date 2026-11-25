@@ -227,6 +227,103 @@
   // live slide (see follow-along), so the move does not happen.
   let followGate: (slide: number, phase: number) => boolean = () => false;
 
+  /* ---------- shared: what a talk's scripts keep in step ----------
+   * deck.share(key, value) keeps a small JSON value the same in every
+   * view of the talk: the other window (slides or presenter) and, while
+   * live, the phones following. null clears it. With { slide: true } the
+   * value belongs to the current slide: a slide change clears it in
+   * every view, with no "shared" event (each hears its own deck:slide).
+   * The other views hear a change as a "shared" event, { key, value },
+   * after any slide change that came with it; the view that shared it
+   * does not. deck.shared(key) reads one (null when unset). A phone takes
+   * the speaker's values while it follows, and only as they change, so
+   * someone looking around on their own keeps their view until the
+   * speaker moves; coming back to the live slide brings the speaker's
+   * values back. Each entry is { v, s }: the value, and its slide. */
+  type Shared = { v: unknown; s?: number };
+  const SHARED_MAX = 4000; // bytes; the server takes 4096 (server/live.go)
+  let shared: Record<string, Shared> = {};
+  let sharesHeld: any[] | null = null; // window messages that came while a move was running
+  const entryJson = (e) => (e ? JSON.stringify(e) : "null");
+  const validEntry = (e): e is Shared =>
+    !!e && typeof e === "object" && "v" in e && e.v != null && (e.s == null || Number.isInteger(e.s));
+  // An entry for another slide is stale (a slide change crossed it).
+  const liveEntry = (e) => (validEntry(e) && (e.s == null || e.s === current) ? e : null);
+  // Tell the scripts, after the deck:slide of any slide change that came
+  // with it (those are sent from a microtask too, queued first).
+  const tellShared = (keys: string[]) =>
+    queueMicrotask(() => {
+      for (const key of keys) document.dispatchEvent(new CustomEvent("deck:shared", { detail: { key, value: shared[key]?.v ?? null } }));
+    });
+
+  const share = (key: string, value: unknown, { slide = false } = {}) => {
+    if (typeof key !== "string" || !key) return false;
+    let entry: Shared | null = null;
+    if (value != null) {
+      try {
+        const json = JSON.stringify(value);
+        if (json === undefined) return false;
+        entry = slide ? { v: JSON.parse(json), s: current } : { v: JSON.parse(json) };
+      } catch {
+        return false;
+      }
+    }
+    if (entryJson(entry) === entryJson(shared[key])) return true;
+    const next = { ...shared };
+    if (entry) next[key] = entry;
+    else delete next[key];
+    if (new TextEncoder().encode(JSON.stringify(next)).length > SHARED_MAX) {
+      console.warn(`deck.share("${key}"): over ${SHARED_MAX} bytes shared in all, so not shared`);
+      return false;
+    }
+    shared = next;
+    post({ type: "share", key, entry });
+    lead();
+    return true;
+  };
+  const sharedValue = (key: string) => liveEntry(shared[key])?.v ?? null;
+  // What goes to the server. share() keeps each window under the cap, but
+  // the two windows' values merged can pass it; the server would refuse
+  // the whole post (slide, laser and all), so then phones get none.
+  let sharedOverWarned = false;
+  const sharedForServer = () => {
+    if (new TextEncoder().encode(JSON.stringify(shared)).length <= SHARED_MAX) return shared;
+    if (!sharedOverWarned) console.warn(`deck.share: over ${SHARED_MAX} bytes shared in all, so phones get none of it`);
+    sharedOverWarned = true;
+    return {};
+  };
+
+  // Take what another view shares: next replaces the values here, and the
+  // scripts hear of each that differs from base (the values here, or for
+  // a phone the speaker's last) and from what is here now.
+  const adoptShared = (next, base: Record<string, unknown> = shared) => {
+    if (!next || typeof next !== "object" || Array.isArray(next)) next = {};
+    const changed: string[] = [];
+    for (const key of new Set([...Object.keys(next), ...Object.keys(base)])) {
+      if (entryJson(next[key]) === entryJson(base[key])) continue;
+      // For another slide: stale (it crossed a slide change), so it neither
+      // sets nor clears what is here.
+      if (validEntry(next[key]) && !liveEntry(next[key])) continue;
+      const e = liveEntry(next[key]);
+      if (entryJson(e) === entryJson(shared[key])) continue;
+      if (e) shared[key] = { ...e };
+      else delete shared[key];
+      changed.push(key);
+    }
+    if (!changed.length) return;
+    tellShared(changed);
+    lead(); // the slides window passes a change from the presenter on to phones
+  };
+  // The other window's one change.
+  const takeShare = (m) => {
+    if (busy) return void (sharesHeld ||= []).push(m);
+    adoptShared({ ...shared, [m.key]: m.entry }, shared);
+  };
+  // A slide change drops the values that belonged to the old slide.
+  const dropSlideShared = () => {
+    for (const [key, e] of Object.entries(shared)) if (e.s != null && e.s !== current) delete shared[key];
+  };
+
   /* ---------- phases ---------- */
 
   const phasesOf = (slide) => {
@@ -800,6 +897,7 @@
       clipFull = null;
     }
     current = n;
+    if (n !== from) dropSlideShared();
     if (n !== from && localPage && !presenterMode && !document.body.classList.contains("dk-following")) {
       // Warn about a demo server on the demo slide, or one slide ahead.
       // Only on a copy you present from (file:// or localhost): a visitor
@@ -1410,7 +1508,7 @@
   };
   // Hello to any window of this deck on the channel, else to one window.
   const greet = (win) => {
-    if (channel || win) send(win, envelope({ type: "hello", state: state() }, null));
+    if (channel || win) send(win, envelope({ type: "hello", state: state(), shared }, null));
   };
 
   const sync = () => {
@@ -1434,16 +1532,19 @@
     });
   };
 
-  // Take a move from the other window. A jump zooms here too.
-  const receive = (s, jump) => {
+  // Take a move from the other window (with its shared values, on a
+  // hello or welcome). A jump zooms here too.
+  const receive = (s, jump, sh = null) => {
     if (busy) {
-      pendingRemote = [s, jump];
+      // A later plain move must not drop a held hello's or welcome's values.
+      pendingRemote = [s, jump, sh ?? pendingRemote?.[2] ?? null];
       return;
     }
     applying = true;
     const done = () => {
       lastSent = JSON.stringify(state());
       applying = false;
+      if (sh) adoptShared(sh);
       if (presenterMode) renderPresenter();
     };
     if (jump && s.slide !== current && !presenterMode && canAnimate()) {
@@ -1464,10 +1565,14 @@
   };
 
   afterBusy = () => {
-    if (!pendingRemote) return;
-    const [s, jump] = pendingRemote;
-    pendingRemote = null;
-    receive(s, jump);
+    if (pendingRemote) {
+      const [s, jump, sh] = pendingRemote;
+      pendingRemote = null;
+      receive(s, jump, sh);
+    }
+    const held = sharesHeld || [];
+    sharesHeld = null;
+    held.forEach(takeShare);
   };
 
   const onMessage = (m, source) => {
@@ -1497,16 +1602,18 @@
     if (m.deck === "hello") {
       // A (re)connection: the window that loaded last adopts the other's
       // place; the older one says where it is.
-      if (born > m.born && m.state) receive(m.state, false);
+      if (born > m.born && m.state) receive(m.state, false, m.shared || {});
       else {
         lastSent = "";
-        post({ type: "welcome", state: state() });
+        post({ type: "welcome", state: state(), shared });
       }
       // Either way the presenter learns at once that this window is here,
       // and whether it is live.
       if (!presenterMode) livePong();
     } else if ((m.deck === "welcome" || m.deck === "state") && m.state) {
-      receive(m.state, !!m.jump);
+      receive(m.state, !!m.jump, m.deck === "welcome" ? m.shared || {} : null);
+    } else if (m.deck === "share" && typeof m.key === "string") {
+      takeShare(m);
     } else if (m.deck === "laser") {
       laserPoint(m.x, m.y);
     } else if (m.deck === "ink") {
@@ -2359,7 +2466,7 @@
       const r = await fetch(leadAt("state"), {
         method: "POST",
         headers: leadHeaders(),
-        body: JSON.stringify({ slide: current, phase: phaseOf(slides[current]), live: true, clip: !!clipFull, events }),
+        body: JSON.stringify({ slide: current, phase: phaseOf(slides[current]), live: true, clip: !!clipFull, shared: sharedForServer(), events }),
       });
       if (r.status === 403 && gateAuth) {
         // Signed in, but not as the owner: there is no key to ask for.
@@ -2611,11 +2718,17 @@
     waiting.textContent = "Waiting for the talk to start";
     document.body.appendChild(waiting);
 
-    const follow = (s) => {
+    // The speaker's shared values this phone last took (see "shared").
+    let leadShared = {};
+    // rejoining: take all the speaker's values, not just the ones that changed.
+    const follow = (s, rejoining = false) => {
       if (!s || !Number.isInteger(s.slide)) return;
       if (overview) return;
       if (anonUrl && s.slide > have) return; // not here yet: ensure brings it
       apply({ slide: Math.min(s.slide, slides.length - 1), phase: s.phase, clip: !!s.clip });
+      const next = s.shared && typeof s.shared === "object" ? s.shared : {};
+      adoptShared(next, rejoining ? shared : leadShared);
+      leadShared = next;
     };
 
     // Signed out: the slides so far, fetched as the speaker reaches them.
@@ -2654,6 +2767,8 @@
       es.close();
       live = false;
       laserPoint(null, null);
+      adoptShared({});
+      leadShared = {};
       wipe();
       back.hidden = true;
       bar.hidden = true;
@@ -2685,7 +2800,7 @@
     const rejoin = () => {
       live = true;
       showBack();
-      follow(latest);
+      follow(latest, true);
       redrawInk();
     };
     back.addEventListener("click", (e) => {
@@ -2723,19 +2838,21 @@
         return;
       }
       if (latest && s.slide !== latest.slide) liveInk = [];
-      // Going live brings everyone along, wherever they had wandered.
-      if (s.live && !latest?.live) live = true;
+      // Going live brings everyone along, wherever they had wandered, with
+      // all of the speaker's shared values (as Back to the live slide does).
+      const brought = s.live && !latest?.live;
+      if (brought) live = true;
       latest = s;
       if (ended) return;
       waiting.hidden = true;
       if (anonUrl && s.live && s.slide > have) {
         ensure(s.slide).then(() => {
-          if (live) follow(latest);
+          if (live) follow(latest, brought);
           else showBack();
         });
         return;
       }
-      if (live) follow(latest);
+      if (live) follow(latest, brought);
       else showBack();
     });
     // The server ends a signed-out follower's stream when the talk stops;
@@ -2878,5 +2995,5 @@
   // Tiny debugging/automation surface (not part of the authoring contract).
   // on("slide" | "phase", fn): the events above, with their detail.
   const on = (type, fn) => document.addEventListener(`deck:${type}`, (e) => fn((e as CustomEvent).detail));
-  window.deck = { goTo, next, prev, finish, jumpTo, slides, state, apply, probe, estimate, titleOf, on };
+  window.deck = { goTo, next, prev, finish, jumpTo, slides, state, apply, probe, estimate, titleOf, on, share, shared: sharedValue };
 })();

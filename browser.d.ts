@@ -31,9 +31,23 @@ declare global {
     // Seconds the slide should take.
     estimate(slide: HTMLElement): number;
     titleOf(slide: Element): string;
-    // The deck:slide and deck:phase events, by short name.
+    // The deck:slide, deck:phase and deck:shared events, by short name.
     on(type: "slide", fn: (d: DeckSlideEvent) => void): void;
     on(type: "phase", fn: (d: DeckPhaseEvent) => void): void;
+    on(type: "shared", fn: (d: DeckSharedEvent) => void): void;
+    // Keep a small JSON value the same in every view of the talk (the
+    // other window, and phones while live); null clears it. With slide,
+    // it belongs to the current slide and a slide change clears it.
+    // False when it was not shared (over the size cap, or not JSON).
+    share(key: string, value: unknown, opts?: { slide?: boolean }): boolean;
+    // A shared value, null when unset.
+    shared(key: string): unknown;
+  }
+
+  // deck:shared: another view of the talk shared a value (null: cleared).
+  interface DeckSharedEvent {
+    key: string;
+    value: unknown;
   }
 
   // deck:slide: the current slide changed (from is -1 at the start).
@@ -56,6 +70,7 @@ declare global {
   interface DocumentEventMap {
     "deck:slide": CustomEvent<DeckSlideEvent>;
     "deck:phase": CustomEvent<DeckPhaseEvent>;
+    "deck:shared": CustomEvent<DeckSharedEvent>;
   }
 
   // One slide's lint issues; slide is 1-based.

@@ -182,6 +182,7 @@ The engine announces moves on `document`:
 | `deck:slide` | `{ index, from, slide, dir }` | the current slide changed (`from` is -1 at the start, `dir` is `"fwd"` or `"back"`) |
 | `deck:phase` | `{ index, slide, phase, phases }` | the current slide's build step changed, or a slide was arrived on |
 | `deck:insert` | `{ index, slide }` | a signed-out follower's deck received a slide it started without (its content was empty until now) |
+| `deck:shared` | `{ key, value }` | another view of the talk shared a value with `deck.share` (`value` is null when it was cleared); sent after the `deck:slide` of any slide change that came with it |
 
 ```ts
 window.deck.on("phase", ({ slide, phase, phases }) => {
@@ -194,6 +195,40 @@ window.deck.on("phase", ({ slide, phase, phases }) => {
 window), `dk-overview` (Esc's grid), `dk-following` (a phone following
 the speaker). Scripts take no imports and must not fetch anything: the
 built deck is one offline file.
+
+### Keeping a script's state in step
+
+A script that keeps state of its own (a viewer it opens over the slide,
+a toggle, a trail of jumps) shares it with `deck.share(key, value)`, so
+every view of the talk shows the same: the slides window and the
+presenter window (in this browser, or from `file://`), and the phones
+following while the talk is live. Don't open a channel of your own:
+it can't reach the phones.
+
+```ts
+deck.share("viewer", { name, zoom }, { slide: true }); // null clears it
+deck.on("shared", ({ key, value }) => {
+  if (key === "viewer") value ? openViewer(value) : closeViewer();
+});
+```
+
+- The value is plain JSON, small: all of a talk's shared values together
+  stay under 4000 bytes. `share` returns false when one is not shared.
+- The view that shares a value hears no event for it. Apply what you
+  hear without sharing it again.
+- `{ slide: true }`: the value belongs to the current slide. A slide
+  change clears it in every view, with no `shared` event (handle
+  `deck:slide`). Use it for anything shown over the slide.
+- `deck.shared(key)` reads a value (null when unset), for a script that
+  starts after the talk has.
+- A reloaded window gets the values from the other window; a phone that
+  joins late gets them with the slide.
+- A phone takes the speaker's values while it follows, and only as they
+  change: someone who pans a viewer on their own phone keeps their view
+  until the speaker moves it. Back to the live slide takes all of them
+  again. When the talk stops, they are cleared.
+- Share a view, not pixels: the windows and phones differ in size (a
+  centre point and a zoom relative to fitting, say).
 
 ## What stays the engine's
 

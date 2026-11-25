@@ -455,7 +455,10 @@ stay at the start; once you stop, the whole deck is theirs. Forgot to stop?
 The deck posts at least every 10s while live, so the server ends a talk it
 has not heard from for 30s (a closed tab, a sleeping laptop); going live
 again brings everyone back. A demo clip you
-blow up with `v` blows up on their phones too.
+blow up with `v` blows up on their phones too, and whatever the talk's
+scripts share with `deck.share` (a diagram opened over the slide, say)
+reaches them with the slide: see THEMES.md, "Keeping a script's state in
+step".
 
 Followers are on phones: the live page has no shortcut keys or key help.
 They move with swipes (or arrow keys), the back button and an overlay row of
