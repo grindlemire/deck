@@ -102,12 +102,48 @@ type listener struct {
 }
 
 // leadState is where the speaker is. Live is false once they stop, which
-// lets followers move freely; Clip is a demo clip blown up to full size.
+// lets followers move freely; Clip is a demo clip blown up to full size;
+// Shared is what the talk's scripts share (deck.share), passed on as is.
 type leadState struct {
-	Slide int  `json:"slide"`
-	Phase int  `json:"phase"`
-	Live  bool `json:"live"`
-	Clip  bool `json:"clip,omitempty"`
+	Slide  int        `json:"slide"`
+	Phase  int        `json:"phase"`
+	Live   bool       `json:"live"`
+	Clip   bool       `json:"clip,omitempty"`
+	Shared sharedJSON `json:"shared,omitempty"`
+}
+
+// maxShared caps what the talk's scripts share, compacted. The deck keeps
+// under it, so a post over it is a bug, not a talk to pass on.
+const maxShared = 4096
+
+// sharedJSON is a JSON object kept as compact text, so leadState stays
+// comparable (an unchanged post sends nothing). The server never reads
+// inside it. Empty means nothing is shared.
+type sharedJSON string
+
+func (s sharedJSON) MarshalJSON() ([]byte, error) {
+	if s == "" {
+		return []byte("{}"), nil
+	}
+	return []byte(s), nil
+}
+
+func (s *sharedJSON) UnmarshalJSON(b []byte) error {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, b); err != nil {
+		return err
+	}
+	switch {
+	case buf.String() == "null" || buf.String() == "{}":
+		*s = ""
+	case buf.Len() > maxShared:
+		return fmt.Errorf("shared: %d bytes, over %d", buf.Len(), maxShared)
+	case buf.Bytes()[0] != '{':
+		return fmt.Errorf("shared: want an object")
+	default:
+		*s = sharedJSON(buf.String())
+	}
+	return nil
 }
 
 // fx is one laser or ink event from the lead, in slide fractions. D is
@@ -376,8 +412,9 @@ func (lv *live) serveLead(w http.ResponseWriter, r *http.Request) {
 		Slide  *int  `json:"slide"`
 		Phase  *int  `json:"phase"`
 		Live   *bool `json:"live"`
-		Clip   bool  `json:"clip"`
-		Events []fx  `json:"events"`
+		Clip   bool       `json:"clip"`
+		Shared sharedJSON `json:"shared"`
+		Events []fx       `json:"events"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
 		http.Error(w, "bad json", http.StatusBadRequest)
@@ -394,7 +431,12 @@ func (lv *live) serveLead(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	live := in.Live == nil || *in.Live
-	n := rm.lead(leadState{Slide: *in.Slide, Phase: *in.Phase, Live: live, Clip: in.Clip}, in.Events)
+	s := leadState{Slide: *in.Slide, Phase: *in.Phase, Live: live, Clip: in.Clip, Shared: in.Shared}
+	if !live {
+		// Stopped: phones roam the deck, so nothing holds them in a script's view.
+		s.Clip, s.Shared = false, ""
+	}
+	n := rm.lead(s, in.Events)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]int{"followers": n})
 }
@@ -573,6 +615,7 @@ func (rm *room) endIfSilent(now time.Time, after time.Duration) {
 	}
 	rm.state.Live = false
 	rm.state.Clip = false
+	rm.state.Shared = ""
 	rm.broadcastLocked(sse("state", rm.state))
 	rm.endedLocked()
 }

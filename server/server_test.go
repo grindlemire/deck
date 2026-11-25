@@ -312,11 +312,35 @@ func TestFollowersGetTheSlideLaserAndInk(t *testing.T) {
 	if !s.Clip || !s.Live {
 		t.Errorf("clip state = %+v; want clip, live", s)
 	}
-	post(t, state, testKey, `{"slide":4,"phase":1,"live":false}`)
-	s = leadState{}
-	early.next("state", &s)
-	if s.Live || s.Clip {
-		t.Errorf("stopped state = %+v; want not live, no clip", s)
+	// What the talk's scripts share goes out as is, compacted, and late
+	// joiners get it; the same object again sends nothing.
+	post(t, state, testKey, `{"slide":4,"phase":1,"clip":true,"shared":{"diagram": {"name":"l2","z":1.5}}}`)
+	var raw map[string]json.RawMessage
+	early.next("state", &raw)
+	const want = `{"diagram":{"name":"l2","z":1.5}}`
+	if got := string(raw["shared"]); got != want {
+		t.Errorf("shared = %s; want %s", got, want)
+	}
+	post(t, state, testKey, `{"slide":4,"phase":1,"clip":true,"shared":{"diagram":{"name":"l2","z":1.5}}}`)
+	early.quiet()
+	late5 := listen(t, events)
+	raw = nil
+	late5.next("state", &raw)
+	if got := string(raw["shared"]); got != want {
+		t.Errorf("late joiner's shared = %s; want %s", got, want)
+	}
+	for _, bad := range []string{`[1]`, `"x"`, `{"k":"` + strings.Repeat("a", maxShared) + `"}`} {
+		if res, _ := post(t, state, testKey, `{"slide":4,"phase":1,"shared":`+bad+`}`); res.StatusCode != http.StatusBadRequest {
+			t.Errorf("shared %.20s: got %d; want 400", bad, res.StatusCode)
+		}
+	}
+
+	// Stopping drops the clip and what is shared, whatever the post says.
+	post(t, state, testKey, `{"slide":4,"phase":1,"live":false,"clip":true,"shared":{"diagram":{"name":"l2"}}}`)
+	raw = nil
+	early.next("state", &raw)
+	if _, ok := raw["shared"]; ok || string(raw["live"]) != "false" || raw["clip"] != nil {
+		t.Errorf("stopped state = %v; want not live, no clip, nothing shared", raw)
 	}
 
 	// A speaker who goes quiet without stopping: the talk ends on its own
